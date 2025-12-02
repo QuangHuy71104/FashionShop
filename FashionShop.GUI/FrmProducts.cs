@@ -10,12 +10,19 @@ namespace FashionShop.GUI
     public class FrmProducts : Form
     {
         ProductService service = new ProductService();
+        private Account current;
+
         DataGridView dgv;
         TextBox txtCode, txtName, txtPrice, txtStock, txtSize, txtColor, txtSearch;
         ComboBox cboCategory, cboGender;
 
-        public FrmProducts()
+        Button btnAdd, btnUpd, btnDel, btnReload;
+
+        // ===== ctor nhận Account =====
+        public FrmProducts(Account acc)
         {
+            current = acc;
+
             Text = "Products Management";
             Size = new Size(1000, 600);
             StartPosition = FormStartPosition.CenterScreen;
@@ -52,11 +59,12 @@ namespace FashionShop.GUI
             panel.Controls.Add(MakeLabel("Stock", 10, y));
             txtStock = MakeTextBox(110, y); panel.Controls.Add(txtStock); y += 50;
 
-            var btnAdd = MakeButton("Add", 10, y);
-            var btnUpd = MakeButton("Update", 110, y);
-            var btnDel = MakeButton("Delete", 210, y);
+            // ====== buttons (DÙNG FIELD) ======
+            btnAdd = MakeButton("Add", 10, y);
+            btnUpd = MakeButton("Update", 110, y);
+            btnDel = MakeButton("Delete", 210, y);
             y += 45;
-            var btnReload = MakeButton("Reload", 10, y);
+            btnReload = MakeButton("Reload", 10, y);
 
             btnAdd.Click += BtnAdd_Click;
             btnUpd.Click += BtnUpd_Click;
@@ -91,7 +99,41 @@ namespace FashionShop.GUI
                 cboCategory.DisplayMember = "category_name";
                 cboCategory.ValueMember = "category_id";
                 LoadGrid();
+
+                ApplyRolePermission(); // <--- gọi sau khi UI tạo xong
             };
+        }
+
+        // ===== ctor mặc định (nếu mở form không truyền account) =====
+        public FrmProducts() : this(null) { }
+
+        // ====== khóa quyền staff ======
+        private void ApplyRolePermission()
+        {
+            if (current == null) return;
+
+            bool isStaff = current.Role != null &&
+                           current.Role.Equals("Staff", StringComparison.OrdinalIgnoreCase);
+
+            if (isStaff)
+            {
+                // không cho thêm/sửa/xóa
+                btnAdd.Enabled = false;
+                btnUpd.Enabled = false;
+                btnDel.Enabled = false;
+
+                // khóa luôn input để staff chỉ xem
+                txtCode.ReadOnly = true;
+                txtName.ReadOnly = true;
+                txtSize.ReadOnly = true;
+                txtColor.ReadOnly = true;
+                txtPrice.ReadOnly = true;
+                txtStock.ReadOnly = true;
+                cboCategory.Enabled = false;
+                cboGender.Enabled = false;
+
+                Text += " (View only)";
+            }
         }
 
         void LoadGrid() => dgv.DataSource = service.GetAll();
@@ -158,8 +200,13 @@ namespace FashionShop.GUI
         }
 
         // UI helpers
-        Label MakeLabel(string t, int x, int y) => new Label { Text = t + ":", Location = new Point(x, y + 5), AutoSize = true };
-        TextBox MakeTextBox(int x, int y) => new TextBox { Location = new Point(x, y), Width = 180 };
-        Button MakeButton(string t, int x, int y) => new Button { Text = t, Location = new Point(x, y), Width = 90 };
+        Label MakeLabel(string t, int x, int y) =>
+            new Label { Text = t + ":", Location = new Point(x, y + 5), AutoSize = true };
+
+        TextBox MakeTextBox(int x, int y) =>
+            new TextBox { Location = new Point(x, y), Width = 180 };
+
+        Button MakeButton(string t, int x, int y) =>
+            new Button { Text = t, Location = new Point(x, y), Width = 90 };
     }
 }

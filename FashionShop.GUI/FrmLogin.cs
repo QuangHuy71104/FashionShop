@@ -12,6 +12,24 @@ namespace FashionShop.GUI
         Button btnLogin, btnExit;
         AuthService auth = new AuthService();
 
+        private void InitializeComponent()
+        {
+            this.SuspendLayout();
+            // 
+            // FrmLogin
+            // 
+            this.ClientSize = new System.Drawing.Size(274, 229);
+            this.Name = "FrmLogin";
+            this.Load += new System.EventHandler(this.FrmLogin_Load);
+            this.ResumeLayout(false);
+
+        }
+
+        private void FrmLogin_Load(object sender, EventArgs e)
+        {
+
+        }
+
         public FrmLogin()
         {
             Text = "Fashion Shop - Login";

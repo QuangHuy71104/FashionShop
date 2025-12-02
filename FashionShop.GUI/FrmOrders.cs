@@ -130,6 +130,24 @@ namespace FashionShop.GUI
             lblTotal.Text = "Total: " + cart.Sum(x => x.SubTotal).ToString("N0") + " đ";
         }
 
+        private void InitializeComponent()
+        {
+            this.SuspendLayout();
+            // 
+            // FrmOrders
+            // 
+            this.ClientSize = new System.Drawing.Size(274, 229);
+            this.Name = "FrmOrders";
+            this.Load += new System.EventHandler(this.FrmOrders_Load);
+            this.ResumeLayout(false);
+
+        }
+
+        private void FrmOrders_Load(object sender, EventArgs e)
+        {
+
+        }
+
         void Checkout(object sender, EventArgs e)
         {
             int? cid = null;

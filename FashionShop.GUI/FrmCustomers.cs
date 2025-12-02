@@ -14,6 +14,24 @@ namespace FashionShop.GUI
         TextBox txtId, txtName, txtPhone, txtEmail, txtAddress, txtPoints, txtSearch;
         Button btnAdd, btnUpd, btnDel, btnReload, btnSearch;
 
+        private void InitializeComponent()
+        {
+            this.SuspendLayout();
+            // 
+            // FrmCustomers
+            // 
+            this.ClientSize = new System.Drawing.Size(274, 229);
+            this.Name = "FrmCustomers";
+            this.Load += new System.EventHandler(this.FrmCustomers_Load);
+            this.ResumeLayout(false);
+
+        }
+
+        private void FrmCustomers_Load(object sender, EventArgs e)
+        {
+
+        }
+
         public FrmCustomers()
         {
             InitializeUI();
