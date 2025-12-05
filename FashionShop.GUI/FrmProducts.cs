@@ -27,6 +27,7 @@ namespace FashionShop.GUI
             // ===== Form base =====
             Text = "Products Management";
             MinimumSize = new Size(1100, 650);
+            Size = new Size(1400, 700);
             StartPosition = FormStartPosition.CenterScreen;
             BackColor = Color.White;
             Font = new Font("Segoe UI", 10f);
@@ -36,6 +37,7 @@ namespace FashionShop.GUI
             {
                 Dock = DockStyle.Fill,
                 FixedPanel = FixedPanel.None,
+                IsSplitterFixed = false,
                 BackColor = Color.White
             };
             Controls.Add(split);
@@ -54,25 +56,24 @@ namespace FashionShop.GUI
                 Padding = new Padding(12)
             };
 
+            // ✅ TableLayout auto-size để không ăn khoảng trống
             var tbl = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill,
-                AutoSize = false,
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 2,
                 RowCount = 0,
                 Padding = new Padding(6),
             };
 
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110)); // label rộng cố định
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));  // input fill
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-
-            // row helper
             int _row = 0;
             void AddRow(string label, Control control)
             {
-                tbl.RowCount = _row + 1; // <<< tăng số row thật sự
-
+                tbl.RowCount = _row + 1;
                 tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
 
                 var lb = new Label
@@ -88,22 +89,16 @@ namespace FashionShop.GUI
 
                 tbl.Controls.Add(lb, 0, _row);
                 tbl.Controls.Add(control, 1, _row);
-
                 _row++;
             }
 
+            // === controls ===
             txtCode = new TextBox();
             txtName = new TextBox();
 
-            cboCategory = new ComboBox
-            {
-                DropDownStyle = ComboBoxStyle.DropDownList
-            };
+            cboCategory = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
 
-            cboGender = new ComboBox
-            {
-                DropDownStyle = ComboBoxStyle.DropDownList
-            };
+            cboGender = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
             cboGender.Items.AddRange(new object[] { "Men", "Women", "Unisex" });
             cboGender.SelectedIndex = 0;
 
@@ -124,6 +119,7 @@ namespace FashionShop.GUI
                 ThousandsSeparator = true
             };
 
+            // add rows
             AddRow("Code", txtCode);
             AddRow("Name", txtName);
             AddRow("Category", cboCategory);
@@ -133,60 +129,153 @@ namespace FashionShop.GUI
             AddRow("Price", nudPrice);
             AddRow("Stock", nudStock);
 
-            // Buttons panel
-            var pnlButtons = new FlowLayoutPanel
+
+            var btnGrid = new TableLayoutPanel
             {
-                Dock = DockStyle.Bottom,
-                FlowDirection = FlowDirection.LeftToRight,
-                Height = 90,
-                Padding = new Padding(0, 10, 0, 0)
+                Dock = DockStyle.Top,     
+                Height = 105,
+                ColumnCount = 2,
+                RowCount = 2,
+                Padding = new Padding(6),
+                Margin = new Padding(0, 12, 0, 0)
             };
+
+            btnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            btnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            btnGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+            btnGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
 
             btnAdd = MakeButton("Add", Color.FromArgb(33, 150, 243));
             btnUpd = MakeButton("Update", Color.FromArgb(76, 175, 80));
             btnDel = MakeButton("Delete", Color.FromArgb(244, 67, 54));
             btnReload = MakeButton("Reload", Color.FromArgb(96, 125, 139));
 
+            // ✅ dock fill để nút tự giãn bằng nhau
+            btnAdd.Dock = DockStyle.Fill;
+            btnUpd.Dock = DockStyle.Fill;
+            btnDel.Dock = DockStyle.Fill;
+            btnReload.Dock = DockStyle.Fill;
+
+            btnAdd.Margin = new Padding(6);
+            btnUpd.Margin = new Padding(6);
+            btnDel.Margin = new Padding(6);
+            btnReload.Margin = new Padding(6);
+
+            // add buttons vào grid
+            btnGrid.Controls.Add(btnAdd, 0, 0);
+            btnGrid.Controls.Add(btnUpd, 1, 0);
+            btnGrid.Controls.Add(btnDel, 0, 1);
+            btnGrid.Controls.Add(btnReload, 1, 1);
+
             btnAdd.Click += BtnAdd_Click;
             btnUpd.Click += BtnUpd_Click;
             btnDel.Click += BtnDel_Click;
             btnReload.Click += (s, e) => LoadGrid();
 
-            pnlButtons.Controls.AddRange(new Control[] { btnAdd, btnUpd, btnDel, btnReload });
 
-            gbInput.Controls.Add(tbl);
-            gbInput.Controls.Add(pnlButtons);
+            // ✅ layout trái gồm 2 hàng: input + buttons (AutoSize)
+            var leftLayout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 1,
+                RowCount = 2,
+                Padding = new Padding(0),
+            };
+
+            leftLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            leftLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            leftLayout.Controls.Add(tbl, 0, 0);
+            leftLayout.Controls.Add(btnGrid, 0, 1);
+
+            // add to groupbox
+            gbInput.Controls.Clear();
+            gbInput.Controls.Add(leftLayout);
 
             split.Panel1.Controls.Add(gbInput);
+
 
             // ================= RIGHT: Search + Grid =================
             split.Panel2.Padding = new Padding(12);
 
-            var pnlSearch = new Panel
+            // ✅ Search bar tự co giãn + cao đều
+            var pnlSearch = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
-                Height = 46
+                Height = 50,
+                ColumnCount = 2,
+                RowCount = 1,
+                Padding = new Padding(0),
+            };
+            pnlSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 80)); // ô search 80%
+            pnlSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20)); // nút 20%
+
+            var searchHost = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(0, 6, 8, 6)  // top/bottom tạo khoảng trống -> chữ nhìn giữa
             };
 
             txtSearch = new TextBox
             {
-                Width = 350,
-                Anchor = AnchorStyles.Left | AnchorStyles.Top
+                Dock = DockStyle.Fill,
+                Multiline = false,
+                Height = 50,
+                Margin = new Padding(0, 6, 8, 6),
+                Font = new Font("Segoe UI", 12f)
+            };
+
+            pnlSearch.Layout += (s, e) =>
+            {
+                int hTxt = txtSearch.PreferredHeight; // chiều cao chuẩn của textbox 1 dòng
+                int pad = Math.Max(0, (pnlSearch.Height - hTxt) / 2);
+
+                txtSearch.Margin = new Padding(0, pad, 8, pad);
+                btnSearch.Margin = new Padding(0, pad, 0, pad);
             };
 
             btnSearch = MakeButton("Search", Color.FromArgb(63, 81, 181));
-            btnSearch.Width = 100;
-            btnSearch.Height = 34;
-            btnSearch.Margin = new Padding(8, 0, 0, 0);
+            btnSearch.Dock = DockStyle.Fill;
+            btnSearch.Margin = new Padding(0, 6, 0, 6);
 
+            pnlSearch.Controls.Add(txtSearch, 0, 0);
+            pnlSearch.Controls.Add(btnSearch, 1, 0);
+
+            // ✅ Placeholder giả (dùng cho .NET Framework / WinForms cũ)
+            string hint = "Type product code or name...";
+            txtSearch.Text = hint;
+            txtSearch.ForeColor = Color.Gray;
+
+            txtSearch.GotFocus += (s, e) =>
+            {
+                if (txtSearch.Text == hint)
+                {
+                    txtSearch.Text = "";
+                    txtSearch.ForeColor = Color.Black;
+                }
+            };
+
+            txtSearch.LostFocus += (s, e) =>
+            {
+                if (string.IsNullOrWhiteSpace(txtSearch.Text))
+                {
+                    txtSearch.Text = hint;
+                    txtSearch.ForeColor = Color.Gray;
+                }
+            };
+
+            // ✅ Search click (chỉ 1 lần thôi)
             btnSearch.Click += (s, e) =>
-                dgv.DataSource = service.Search(txtSearch.Text.Trim());
+            {
+                var key = txtSearch.Text.Trim();
+                if (key == hint) key = "";       // tránh search theo chữ gợi ý
+                dgv.DataSource = service.Search(key);
+            };
 
-            pnlSearch.Controls.Add(txtSearch);
-            pnlSearch.Controls.Add(btnSearch);
-            txtSearch.Location = new Point(0, 8);
-            btnSearch.Location = new Point(txtSearch.Right + 8, 6);
 
+            // ===== Grid =====
             dgv = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -206,50 +295,50 @@ namespace FashionShop.GUI
             split.Panel2.Controls.Add(dgv);
             split.Panel2.Controls.Add(pnlSearch);
 
+
+            // ✅ set width trái phải hợp lý ngay lúc mở
             Shown += (s, e) =>
             {
-                split.Panel1MinSize = 320;
-                split.Panel2MinSize = 600;
+                split.Panel1MinSize = 280;
+                split.Panel2MinSize = 450;
 
-                // đảm bảo splitter distance hợp lệ theo width hiện tại
-                int desiredLeft = 340;
+                int desiredLeft = 330;
                 int maxLeft = split.Width - split.Panel2MinSize;
-
                 split.SplitterDistance = Math.Max(split.Panel1MinSize,
                                           Math.Min(desiredLeft, maxLeft));
             };
 
-
-            // ===== Load data =====
+            // ✅ LOAD DATA NGAY TỪ ĐẦU
             Load += (s, e) =>
             {
                 cboCategory.DataSource = service.GetCategories();
                 cboCategory.DisplayMember = "category_name";
                 cboCategory.ValueMember = "category_id";
 
-                LoadGrid();
+                LoadGrid();             // ✅ hiển thị list ngay
                 ApplyRolePermission();
             };
+
         }
 
         public FrmProducts() : this(null) { }
 
         // ================= UI STYLE HELPERS =================
         Button MakeButton(string text, Color backColor)
-        {
-            return new Button
-            {
-                Text = text,
-                BackColor = backColor,
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Height = 38,
-                Width = 95,
-                Font = new Font("Segoe UI Semibold", 10f),
-                Cursor = Cursors.Hand,
-                Margin = new Padding(6, 0, 6, 0)
-            };
-        }
+{
+    return new Button
+    {
+        Text = text,
+        BackColor = backColor,
+        ForeColor = Color.White,
+        FlatStyle = FlatStyle.Flat,
+        Font = new Font("Segoe UI Semibold", 10f),
+        Cursor = Cursors.Hand,
+        Margin = new Padding(6),
+        MinimumSize = new Size(0, 30) // giữ chiều cao tối thiểu thôi
+    };
+}
+
 
         void StyleGrid(DataGridView g)
         {

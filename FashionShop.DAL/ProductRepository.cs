@@ -14,7 +14,8 @@ namespace FashionShop.DAL
                 string sql = @"SELECT p.product_id, p.product_code, p.product_name,
                                       c.category_name, p.size, p.color, p.gender, p.price, p.stock
                                FROM products p
-                               JOIN categories c ON p.category_id=c.category_id";
+                               JOIN categories c ON p.category_id=c.category_id
+                               ORDER BY p.product_id ASC";
                 var da = new MySqlDataAdapter(sql, conn);
                 var dt = new DataTable();
                 da.Fill(dt);
@@ -31,7 +32,8 @@ namespace FashionShop.DAL
                                       c.category_name, p.size, p.color, p.gender, p.price, p.stock
                                FROM products p
                                JOIN categories c ON p.category_id=c.category_id
-                               WHERE p.product_name LIKE @kw OR p.product_code LIKE @kw";
+                               WHERE p.product_name LIKE @kw OR p.product_code LIKE @kw
+                               ORDER BY p.product_id ASC";
                 var cmd = new MySqlCommand(sql, conn);
                 cmd.Parameters.AddWithValue("@kw", "%" + kw + "%");
                 var da = new MySqlDataAdapter(cmd);
@@ -123,7 +125,7 @@ namespace FashionShop.DAL
             {
                 conn.Open();
                 var da = new MySqlDataAdapter(
-                    "SELECT product_id, product_name, price, stock FROM products WHERE stock>0", conn);
+                    "SELECT product_id, product_name, price, stock FROM products WHERE stock>0 ORDER BY p.product_id ASC", conn);
                 var dt = new DataTable();
                 da.Fill(dt);
                 return dt;

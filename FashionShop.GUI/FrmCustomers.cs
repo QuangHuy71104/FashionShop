@@ -8,133 +8,239 @@ namespace FashionShop.GUI
 {
     public class FrmCustomers : Form
     {
-        CustomerService service = new CustomerService();
+        private readonly CustomerService service = new CustomerService();
 
         DataGridView dgv;
+
         TextBox txtId, txtName, txtPhone, txtEmail, txtAddress, txtPoints, txtSearch;
         Button btnAdd, btnUpd, btnDel, btnReload, btnSearch;
 
-        private void InitializeComponent()
-        {
-            this.SuspendLayout();
-            // 
-            // FrmCustomers
-            // 
-            this.ClientSize = new System.Drawing.Size(274, 229);
-            this.Name = "FrmCustomers";
-            this.Load += new System.EventHandler(this.FrmCustomers_Load);
-            this.ResumeLayout(false);
-
-        }
-
-        private void FrmCustomers_Load(object sender, EventArgs e)
-        {
-
-        }
-
         public FrmCustomers()
         {
-            InitializeUI();
-            Load += (s, e) => LoadGrid();
-        }
-
-        private void InitializeUI()
-        {
+            // ===== Form base (giống Products) =====
             Text = "Customers Management";
-            Size = new Size(1050, 600);
+            MinimumSize = new Size(1050, 600);
             StartPosition = FormStartPosition.CenterScreen;
-            Font = new Font("Segoe UI", 10);
-            BackColor = Color.WhiteSmoke;
+            BackColor = Color.White;
+            Font = new Font("Segoe UI", 10f);
 
-            // ===== Split layout =====
+            // ===== Root SplitContainer =====
             var split = new SplitContainer
             {
                 Dock = DockStyle.Fill,
-                SplitterDistance = 340,
-                BackColor = Color.WhiteSmoke
+                FixedPanel = FixedPanel.None,
+                IsSplitterFixed = false,
+                BackColor = Color.White
             };
             Controls.Add(split);
 
-            // ===== LEFT: Form panel =====
-            var leftWrap = new Panel
-            {
-                Dock = DockStyle.Fill,
-                Padding = new Padding(12),
-                BackColor = Color.WhiteSmoke
-            };
-            split.Panel1.Controls.Add(leftWrap);
+            // ================= LEFT: Input =================
+            split.Panel1.Padding = new Padding(12);
 
-            var gbForm = new GroupBox
+            var gbInput = new GroupBox
             {
                 Text = "Customer Information",
-                Dock = DockStyle.Top,
-                Height = 310,
-                Padding = new Padding(12),
-                Font = new Font("Segoe UI Semibold", 10),
-                BackColor = Color.White
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI Semibold", 10.5f),
+                Padding = new Padding(12)
             };
-            leftWrap.Controls.Add(gbForm);
 
-            var formTable = new TableLayoutPanel
+            var tbl = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 2,
+                RowCount = 0,
+                Padding = new Padding(6),
+            };
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+            int _row = 0;
+            void AddRow(string label, Control control)
+            {
+                tbl.RowCount = _row + 1;
+                tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
+
+                var lb = new Label
+                {
+                    Text = label,
+                    AutoSize = false,
+                    Dock = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft
+                };
+
+                control.Dock = DockStyle.Fill;
+                control.Margin = new Padding(0, 2, 0, 2);
+
+                tbl.Controls.Add(lb, 0, _row);
+                tbl.Controls.Add(control, 1, _row);
+                _row++;
+            }
+
+            // === controls ===
+            txtId = new TextBox { ReadOnly = true, BackColor = Color.FromArgb(245, 246, 250) };
+            txtName = new TextBox();
+            txtPhone = new TextBox();
+            txtEmail = new TextBox();
+            txtAddress = new TextBox();
+            txtPoints = new TextBox();
+
+            AddRow("Id", txtId);
+            AddRow("Name", txtName);
+            AddRow("Phone", txtPhone);
+            AddRow("Email", txtEmail);
+            AddRow("Address", txtAddress);
+            AddRow("Points", txtPoints);
+
+            // ===== Buttons grid (giống Products) =====
+            var btnGrid = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                Height = 105,
+                ColumnCount = 2,
+                RowCount = 2,
+                Padding = new Padding(6),
+                Margin = new Padding(0, 12, 0, 0)
+            };
+            btnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            btnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            btnGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+            btnGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+
+            btnAdd = MakeButton("Add", Color.FromArgb(33, 150, 243));
+            btnUpd = MakeButton("Update", Color.FromArgb(76, 175, 80));
+            btnDel = MakeButton("Delete", Color.FromArgb(244, 67, 54));
+            btnReload = MakeButton("Reload", Color.FromArgb(96, 125, 139));
+
+            btnAdd.Dock = DockStyle.Fill;
+            btnUpd.Dock = DockStyle.Fill;
+            btnDel.Dock = DockStyle.Fill;
+            btnReload.Dock = DockStyle.Fill;
+
+            btnAdd.Margin = new Padding(6);
+            btnUpd.Margin = new Padding(6);
+            btnDel.Margin = new Padding(6);
+            btnReload.Margin = new Padding(6);
+
+            btnGrid.Controls.Add(btnAdd, 0, 0);
+            btnGrid.Controls.Add(btnUpd, 1, 0);
+            btnGrid.Controls.Add(btnDel, 0, 1);
+            btnGrid.Controls.Add(btnReload, 1, 1);
+
+            // ===== LEFT layout stack =====
+            var leftLayout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 1,
+                RowCount = 2,
+                Padding = new Padding(0),
+            };
+            leftLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            leftLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            leftLayout.Controls.Add(tbl, 0, 0);
+            leftLayout.Controls.Add(btnGrid, 0, 1);
+
+            gbInput.Controls.Clear();
+            gbInput.Controls.Add(leftLayout);
+            split.Panel1.Controls.Add(gbInput);
+
+            // ================= RIGHT: Search + Grid =================
+            split.Panel2.Padding = new Padding(12);
+
+            var pnlSearch = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                Height = 50,
+                ColumnCount = 2,
+                RowCount = 1,
+                Padding = new Padding(0),
+            };
+            pnlSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 80));
+            pnlSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20));
+
+            txtSearch = new TextBox
             {
                 Dock = DockStyle.Fill,
-                ColumnCount = 2,
-                RowCount = 6,
-                AutoSize = true
+                Multiline = false,
+                Height = 50,
+                Margin = new Padding(0, 6, 8, 6),
+                Font = new Font("Segoe UI", 12f)
             };
-            formTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35));
-            formTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 65));
-            for (int i = 0; i < 6; i++)
-                formTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
 
-            gbForm.Controls.Add(formTable);
+            btnSearch = MakeButton("Search", Color.FromArgb(63, 81, 181));
+            btnSearch.Dock = DockStyle.Fill;
+            btnSearch.Margin = new Padding(0, 6, 0, 6);
 
-            // Inputs
-            txtId = MakeTextBox(readOnly: true);
-            txtName = MakeTextBox();
-            txtPhone = MakeTextBox();
-            txtEmail = MakeTextBox();
-            txtAddress = MakeTextBox();
-            txtPoints = MakeTextBox();
-
-            formTable.Controls.Add(MakeLabel("Id"), 0, 0);
-            formTable.Controls.Add(txtId, 1, 0);
-
-            formTable.Controls.Add(MakeLabel("Name"), 0, 1);
-            formTable.Controls.Add(txtName, 1, 1);
-
-            formTable.Controls.Add(MakeLabel("Phone"), 0, 2);
-            formTable.Controls.Add(txtPhone, 1, 2);
-
-            formTable.Controls.Add(MakeLabel("Email"), 0, 3);
-            formTable.Controls.Add(txtEmail, 1, 3);
-
-            formTable.Controls.Add(MakeLabel("Address"), 0, 4);
-            formTable.Controls.Add(txtAddress, 1, 4);
-
-            formTable.Controls.Add(MakeLabel("Points"), 0, 5);
-            formTable.Controls.Add(txtPoints, 1, 5);
-
-            // Buttons area
-            var btnPanel = new FlowLayoutPanel
+            pnlSearch.Layout += (s, e) =>
             {
-                Dock = DockStyle.Top,
-                Height = 120,
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = true,
-                Padding = new Padding(0, 12, 0, 0),
-                BackColor = Color.Transparent
+                int hTxt = txtSearch.PreferredHeight;
+                int pad = Math.Max(0, (pnlSearch.Height - hTxt) / 2);
+                txtSearch.Margin = new Padding(0, pad, 8, pad);
+                btnSearch.Margin = new Padding(0, pad, 0, pad);
             };
-            leftWrap.Controls.Add(btnPanel);
 
-            btnAdd = MakeButton("Add", Color.FromArgb(46, 204, 113));
-            btnUpd = MakeButton("Update", Color.FromArgb(52, 152, 219));
-            btnDel = MakeButton("Delete", Color.FromArgb(231, 76, 60));
-            btnReload = MakeButton("Reload", Color.FromArgb(149, 165, 166));
+            pnlSearch.Controls.Add(txtSearch, 0, 0);
+            pnlSearch.Controls.Add(btnSearch, 1, 0);
 
-            btnPanel.Controls.AddRange(new Control[] { btnAdd, btnUpd, btnDel, btnReload });
+            // placeholder giả
+            string hint = "Search by name / phone / email...";
+            txtSearch.Text = hint;
+            txtSearch.ForeColor = Color.Gray;
 
-            // Events (giữ logic cũ)
+            txtSearch.GotFocus += (s, e) =>
+            {
+                if (txtSearch.Text == hint)
+                {
+                    txtSearch.Text = "";
+                    txtSearch.ForeColor = Color.Black;
+                }
+            };
+            txtSearch.LostFocus += (s, e) =>
+            {
+                if (string.IsNullOrWhiteSpace(txtSearch.Text))
+                {
+                    txtSearch.Text = hint;
+                    txtSearch.ForeColor = Color.Gray;
+                }
+            };
+
+            // Grid
+            dgv = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false,
+                RowHeadersVisible = false,
+                AllowUserToAddRows = false,
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+            };
+            dgv.CellClick += Dgv_CellClick;
+            StyleGrid(dgv);
+
+            split.Panel2.Controls.Add(dgv);
+            split.Panel2.Controls.Add(pnlSearch);
+
+            // set width trái phải lúc mở
+            Shown += (s, e) =>
+            {
+                split.Panel1MinSize = 280;
+                split.Panel2MinSize = 450;
+
+                int desiredLeft = 330;
+                int maxLeft = split.Width - split.Panel2MinSize;
+                split.SplitterDistance = Math.Max(split.Panel1MinSize,
+                                          Math.Min(desiredLeft, maxLeft));
+            };
+
+            // ===== Events giữ logic cũ =====
             btnAdd.Click += (s, e) =>
             {
                 var c = ReadForm();
@@ -172,101 +278,48 @@ namespace FashionShop.GUI
 
             btnReload.Click += (s, e) => { LoadGrid(); ClearForm(); };
 
-            // ===== RIGHT: Search + Grid =====
-            var rightWrap = new Panel
-            {
-                Dock = DockStyle.Fill,
-                Padding = new Padding(12),
-                BackColor = Color.WhiteSmoke
-            };
-            split.Panel2.Controls.Add(rightWrap);
-
-            var searchPanel = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 52,
-                BackColor = Color.White,
-                Padding = new Padding(10),
-            };
-            rightWrap.Controls.Add(searchPanel);
-
-            txtSearch = new TextBox
-            {
-                Font = new Font("Segoe UI", 10),
-                Width = 320,
-                Location = new Point(10, 12)
-            };
-            SetPlaceholder(txtSearch, "Search by name / phone / email...");
-
-            btnSearch = MakeButton("Search", Color.FromArgb(155, 89, 182));
-            btnSearch.Location = new Point(340, 8);
-            btnSearch.Height = 34;
-            btnSearch.Width = 95;
-
             btnSearch.Click += (s, e) =>
             {
-                var key = txtSearch.ForeColor == Color.Gray ? "" : txtSearch.Text.Trim();
+                var key = txtSearch.Text.Trim();
+                if (key == hint) key = "";
                 dgv.DataSource = service.Search(key);
             };
 
-            searchPanel.Controls.AddRange(new Control[] { txtSearch, btnSearch });
-
-            dgv = new DataGridView
-            {
-                Dock = DockStyle.Fill,
-                ReadOnly = true,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect = false,
-                BorderStyle = BorderStyle.None,
-                BackgroundColor = Color.White,
-                RowHeadersVisible = false,
-                AllowUserToAddRows = false,
-                AllowUserToResizeRows = false,
-            };
-            rightWrap.Controls.Add(dgv);
-
-            StyleGrid(dgv);
-
-            dgv.CellClick += (s, e) =>
-            {
-                if (e.RowIndex < 0) return;
-                var r = dgv.Rows[e.RowIndex];
-                txtId.Text = r.Cells["customer_id"].Value?.ToString();
-                txtName.Text = r.Cells["customer_name"].Value?.ToString();
-                txtPhone.Text = r.Cells["phone"].Value?.ToString();
-                txtEmail.Text = r.Cells["email"].Value?.ToString();
-                txtAddress.Text = r.Cells["address"].Value?.ToString();
-                txtPoints.Text = r.Cells["points"].Value?.ToString();
-            };
+            // load data
+            Load += (s, e) => LoadGrid();
         }
 
-        // ===== Placeholder custom (cho .NET Framework) =====
-        void SetPlaceholder(TextBox tb, string hint)
+        // ================= UI STYLE HELPERS =================
+        Button MakeButton(string text, Color backColor)
         {
-            tb.Text = hint;
-            tb.ForeColor = Color.Gray;
-
-            tb.GotFocus += (s, e) =>
+            return new Button
             {
-                if (tb.Text == hint)
-                {
-                    tb.Text = "";
-                    tb.ForeColor = Color.Black;
-                }
-            };
-
-            tb.LostFocus += (s, e) =>
-            {
-                if (string.IsNullOrWhiteSpace(tb.Text))
-                {
-                    tb.Text = hint;
-                    tb.ForeColor = Color.Gray;
-                }
+                Text = text,
+                BackColor = backColor,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI Semibold", 10f),
+                Cursor = Cursors.Hand,
+                Margin = new Padding(6),
+                MinimumSize = new Size(0, 30)
             };
         }
 
-        // ===== Helpers =====
+        void StyleGrid(DataGridView g)
+        {
+            g.EnableHeadersVisualStyles = false;
+            g.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(245, 245, 245);
+            g.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI Semibold", 10f);
+            g.ColumnHeadersDefaultCellStyle.ForeColor = Color.Black;
+            g.ColumnHeadersHeight = 38;
+
+            g.DefaultCellStyle.Font = new Font("Segoe UI", 10f);
+            g.DefaultCellStyle.SelectionBackColor = Color.FromArgb(33, 150, 243);
+            g.DefaultCellStyle.SelectionForeColor = Color.White;
+            g.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(250, 250, 250);
+        }
+
+        // ================= DATA/FORM =================
         void LoadGrid() => dgv.DataSource = service.GetAll();
 
         Customer ReadForm()
@@ -294,51 +347,17 @@ namespace FashionShop.GUI
             txtPoints.Clear();
         }
 
-        Label MakeLabel(string text) => new Label
+        private void Dgv_CellClick(object sender, DataGridViewCellEventArgs e)
         {
-            Text = text + ":",
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = Color.FromArgb(44, 62, 80)
-        };
+            if (e.RowIndex < 0) return;
+            var r = dgv.Rows[e.RowIndex];
 
-        TextBox MakeTextBox(bool readOnly = false) => new TextBox
-        {
-            Dock = DockStyle.Fill,
-            ReadOnly = readOnly,
-            Font = new Font("Segoe UI", 10),
-            BackColor = readOnly ? Color.FromArgb(245, 246, 250) : Color.White
-        };
-
-        Button MakeButton(string text, Color backColor) => new Button
-        {
-            Text = text,
-            AutoSize = false,
-            Width = 95,
-            Height = 38,
-            Margin = new Padding(6),
-            BackColor = backColor,
-            ForeColor = Color.White,
-            FlatStyle = FlatStyle.Flat,
-            Font = new Font("Segoe UI Semibold", 10),
-            Cursor = Cursors.Hand
-        };
-
-        void StyleGrid(DataGridView grid)
-        {
-            grid.EnableHeadersVisualStyles = false;
-            grid.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(52, 73, 94);
-            grid.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-            grid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI Semibold", 10);
-            grid.ColumnHeadersHeight = 36;
-
-            grid.DefaultCellStyle.Font = new Font("Segoe UI", 10);
-            grid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(236, 240, 241);
-            grid.DefaultCellStyle.SelectionForeColor = Color.Black;
-
-            grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
-            grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
-            grid.GridColor = Color.FromArgb(230, 230, 230);
+            txtId.Text = r.Cells["customer_id"].Value?.ToString();
+            txtName.Text = r.Cells["customer_name"].Value?.ToString();
+            txtPhone.Text = r.Cells["phone"].Value?.ToString();
+            txtEmail.Text = r.Cells["email"].Value?.ToString();
+            txtAddress.Text = r.Cells["address"].Value?.ToString();
+            txtPoints.Text = r.Cells["points"].Value?.ToString();
         }
     }
 }

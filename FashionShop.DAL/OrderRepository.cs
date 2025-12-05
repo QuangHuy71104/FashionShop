@@ -58,5 +58,20 @@ namespace FashionShop.DAL
                 }
             }
         }
+
+        // ✅ THÊM HÀM NÀY
+        public decimal GetRevenue()
+        {
+            using (var conn = DbContext.GetConnection())
+            {
+                conn.Open();
+                var cmd = new MySqlCommand(
+                    @"SELECT IFNULL(SUM(quantity * unit_price), 0)
+                      FROM order_details", conn);
+
+                object result = cmd.ExecuteScalar();
+                return Convert.ToDecimal(result);
+            }
+        }
     }
 }

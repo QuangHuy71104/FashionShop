@@ -11,6 +11,12 @@ namespace FashionShop.GUI
         private Account current;
         private ProductService productService = new ProductService();
         private CustomerService customerService = new CustomerService();
+        private OrderService orderService = new OrderService();
+
+        private SplitContainer splitOuter;
+
+        // ✅ 1 biến ratio duy nhất để scale theo cửa sổ
+        private double _sidebarRatio = 0.20; // 20% (muốn nhỏ hơn thì giảm, vd 0.18)
 
         Label lblProducts, lblCustomers, lblRevenue;
 
@@ -26,8 +32,35 @@ namespace FashionShop.GUI
             BackColor = Color.FromArgb(245, 246, 250);
 
             BuildLayout();
+
+            // ✅ init splitter sau khi handle + layout xong
+            Shown += (s, e) =>
+            {
+                splitOuter.Panel1MinSize = 140;  // ✅ cho sidebar nhỏ được (tự chỉnh)
+                splitOuter.Panel2MinSize = 500;
+
+                SetSplitterRatio(_sidebarRatio);
+            };
+
+            // ✅ scale theo cửa sổ: resize giữ đúng ratio
+            splitOuter.SizeChanged += (s, e) =>
+            {
+                if (splitOuter.Width > splitOuter.Panel1MinSize + splitOuter.Panel2MinSize)
+                    SetSplitterRatio(_sidebarRatio);
+            };
+
             Load += (s, e) => RefreshDashboard();
             Activated += (s, e) => RefreshDashboard();
+        }
+
+        private void SetSplitterRatio(double ratio)
+        {
+            int desired = (int)(splitOuter.Width * ratio);
+            int min = splitOuter.Panel1MinSize;
+            int max = splitOuter.Width - splitOuter.Panel2MinSize;
+            if (max < min) max = min;
+
+            splitOuter.SplitterDistance = Math.Max(min, Math.Min(desired, max));
         }
 
         private Image ResizeImage(Image img, int w, int h)
@@ -43,29 +76,19 @@ namespace FashionShop.GUI
             return bmp;
         }
 
-
         private void BuildLayout()
         {
-            // ===== OUTER SPLIT: 30% Sidebar | 70% Content =====
-            var splitOuter = new SplitContainer
+            // ===== OUTER SPLIT =====
+            splitOuter = new SplitContainer
             {
                 Dock = DockStyle.Fill,
-                IsSplitterFixed = true,            // không cho kéo
+                IsSplitterFixed = true,       // không cho kéo
                 FixedPanel = FixedPanel.None,
                 BackColor = Color.FromArgb(245, 246, 250)
             };
             Controls.Add(splitOuter);
 
-            // set tỉ lệ 30/70 ban đầu
-            splitOuter.SplitterDistance = (int)(splitOuter.Width * 0.10);
-
-            // giữ tỉ lệ khi resize
-            this.Resize += (s, e) =>
-            {
-                splitOuter.SplitterDistance = (int)(splitOuter.Width * 0.10);
-            };
-
-            // ===== SIDEBAR nằm trong Panel1 =====
+            // ===== SIDEBAR (Panel1) =====
             sidebar = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -73,21 +96,36 @@ namespace FashionShop.GUI
             };
             splitOuter.Panel1.Controls.Add(sidebar);
 
+            // ===== TOPBAR (Panel2 - Top) =====
+            topbar = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 55,
+                BackColor = Color.White,
+                Padding = new Padding(15, 10, 15, 10)
+            };
+            splitOuter.Panel2.Controls.Add(topbar);
 
-            // logo / shop name
-            //var lblLogo = new Label
-            //{
-            //    Text = "FashionShop",
-            //    ForeColor = Color.White,
-            //    Font = new Font("Segoe UI", 16, FontStyle.Bold),
-            //    AutoSize = false,
-            //    Height = 60,
-            //    Dock = DockStyle.Top,
-            //    TextAlign = ContentAlignment.MiddleCenter
-            //};
-            //sidebar.Controls.Add(lblLogo);
+            var lblTitle = new Label
+            {
+                Text = "Fashion Shop",
+                Font = new Font("Segoe UI", 16, FontStyle.Bold),
+                Dock = DockStyle.Left,
+                AutoSize = true
+            };
+            topbar.Controls.Add(lblTitle);
 
-            // ===== USER INFO TOP (tách biệt rõ) =====
+            // ===== CONTENT (Panel2 - Fill) =====
+            content = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(18),
+                BackColor = Color.FromArgb(245, 246, 250)
+            };
+            splitOuter.Panel2.Controls.Add(content);
+            content.BringToFront();
+
+            // ===== USER INFO TOP =====
             var userPanel = new Panel
             {
                 Dock = DockStyle.Top,
@@ -114,17 +152,6 @@ namespace FashionShop.GUI
                 Height = 20
             };
 
-            // ===== MENU WRAP (nằm dưới userPanel) =====
-            var menuWrap = new Panel
-            {
-                Dock = DockStyle.Fill,
-                BackColor = Color.FromArgb(44, 62, 80)
-            };
-            sidebar.Controls.Add(menuWrap);
-            menuWrap.BringToFront(); // đảm bảo menu nằm dưới userPanel
-
-
-            // đường kẻ tách khỏi menu
             var sep = new Panel
             {
                 Dock = DockStyle.Bottom,
@@ -136,6 +163,14 @@ namespace FashionShop.GUI
             userPanel.Controls.Add(lblRole);
             userPanel.Controls.Add(lblUser);
 
+            // ===== MENU WRAP =====
+            var menuWrap = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(44, 62, 80)
+            };
+            sidebar.Controls.Add(menuWrap);
+            menuWrap.BringToFront();
 
             // menu buttons
             btnHome = MakeSidebarButton("Home");
@@ -148,35 +183,26 @@ namespace FashionShop.GUI
             btnCustomers.Font = new Font("Segoe UI", 12, FontStyle.Bold);
             btnOrders.Font = new Font("Segoe UI", 12, FontStyle.Bold);
 
-
-            // add vào menuWrap theo DockTop
+            // add theo DockTop (để Home nằm trên)
             menuWrap.Controls.Add(btnOrders);
             menuWrap.Controls.Add(btnCustomers);
             menuWrap.Controls.Add(btnProducts);
             menuWrap.Controls.Add(btnHome);
 
-
-            // ===== LOGOUT dưới cùng + icon =====
+            // ===== LOGOUT bottom =====
             btnLogout = MakeSidebarButton("Logout");
             btnLogout.Dock = DockStyle.Bottom;
             btnLogout.Height = 55;
-
-            // bỏ dấu cách thừa (để icon không bị mất)
             btnLogout.Text = "  Logout";
             btnLogout.Font = new Font("Segoe UI", 12, FontStyle.Bold);
 
-
-            // icon 24x24
             btnLogout.Image = ResizeImage(Properties.Resources.logout, 18, 18);
             btnLogout.ImageAlign = ContentAlignment.MiddleLeft;
             btnLogout.TextAlign = ContentAlignment.MiddleLeft;
             btnLogout.TextImageRelation = TextImageRelation.ImageBeforeText;
-
-            // padding nhẹ thôi
             btnLogout.Padding = new Padding(8, 0, 0, 0);
 
             sidebar.Controls.Add(btnLogout);
-
 
             // events
             btnProducts.Click += (s, e) =>
@@ -196,46 +222,7 @@ namespace FashionShop.GUI
             };
             btnLogout.Click += (s, e) => Close();
 
-            // ===== TOPBAR =====
-            topbar = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 55,
-                BackColor = Color.White,
-                Padding = new Padding(15, 10, 15, 10)
-            };
-            splitOuter.Panel2.Controls.Add(topbar);
-
-            var lblTitle = new Label
-            {
-                Text = "Fashion Shop",
-                Font = new Font("Segoe UI", 16, FontStyle.Bold),
-                Dock = DockStyle.Left,
-                AutoSize = true
-            };
-
-            //var lblHello = new Label
-            //{
-            //    Text = $"Hello, {current.EmployeeName} ({current.Role})",
-            //    ForeColor = Color.Gray,
-            //    Dock = DockStyle.Right,
-            //    AutoSize = true,
-            //};
-
-            //topbar.Controls.Add(lblHello);
-            topbar.Controls.Add(lblTitle);
-
-            // ===== CONTENT AREA =====
-            content = new Panel
-            {
-                Dock = DockStyle.Fill,
-                Padding = new Padding(18),
-                BackColor = Color.FromArgb(245, 246, 250)
-            };
-            splitOuter.Panel2.Controls.Add(content);
-            content.BringToFront(); // để content nằm dưới topbar
-
-            // Row 1 - cards
+            // ===== Row 1 - cards =====
             var cardsWrap = new Panel
             {
                 Dock = DockStyle.Top,
@@ -244,10 +231,9 @@ namespace FashionShop.GUI
             };
             content.Controls.Add(cardsWrap);
 
-            // FlowLayoutPanel chứa card
             var cardsRow = new FlowLayoutPanel
             {
-                AutoSize = true,                 // quan trọng
+                AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false,
@@ -257,52 +243,20 @@ namespace FashionShop.GUI
             };
             cardsWrap.Controls.Add(cardsRow);
 
-            // tạo card
             var cardItems = MakeCard("Items", "0", Color.FromArgb(76, 133, 220), out lblProducts);
             var cardCustomers = MakeCard("Customers", "0", Color.FromArgb(244, 186, 63), out lblCustomers);
             var cardRevenue = MakeCard("Revenue", "0 đ", Color.FromArgb(95, 209, 120), out lblRevenue);
             cardsRow.Controls.AddRange(new Control[] { cardItems, cardCustomers, cardRevenue });
 
-            // ===== hàm center cardsRow mỗi khi resize =====
             void CenterCards()
             {
                 cardsRow.Left = (cardsWrap.Width - cardsRow.Width) / 2;
-                cardsRow.Top = (cardsWrap.Height - cardsRow.Height) / 2; // nếu muốn giữa theo chiều dọc luôn
+                cardsRow.Top = (cardsWrap.Height - cardsRow.Height) / 2;
             }
             cardsWrap.Resize += (s, e) => CenterCards();
             CenterCards();
 
-            // Row 2 - quick links
-            //var quickWrap = new GroupBox
-            //{
-            //    Text = "Quick Links",
-            //    Dock = DockStyle.Top,
-            //    Height = 170,
-            //    Padding = new Padding(12),
-            //    BackColor = Color.White
-            //};
-            //content.Controls.Add(quickWrap);
-
-            //var quickRow = new FlowLayoutPanel
-            //{
-            //    Dock = DockStyle.Fill,
-            //    FlowDirection = FlowDirection.LeftToRight,
-            //    WrapContents = true
-            //};
-            //quickWrap.Controls.Add(quickRow);
-
-            //var qProducts = MakeQuickButton("Open Products", Color.FromArgb(52, 152, 219));
-            //var qCustomers = MakeQuickButton("Open Customers", Color.FromArgb(155, 89, 182));
-            //var qOrders = MakeQuickButton("Open Sales", Color.FromArgb(230, 126, 34));
-
-            //qProducts.Click += (s, e) => btnProducts.PerformClick();
-            //qCustomers.Click += (s, e) => btnCustomers.PerformClick();
-            //qOrders.Click += (s, e) => btnOrders.PerformClick();
-
-            //quickRow.Controls.AddRange(new Control[] { qProducts, qCustomers, qOrders });
-
-            // Row 3 - chart placeholder
-            // Row 3 - plain panel (không GroupBox, không viền)
+            // ===== Row 3 - chart placeholder =====
             var chartWrap = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -319,7 +273,6 @@ namespace FashionShop.GUI
                 TextAlign = ContentAlignment.MiddleCenter
             };
             chartWrap.Controls.Add(lblChart);
-
         }
 
         // ====== Refresh dashboard numbers ======
@@ -330,9 +283,11 @@ namespace FashionShop.GUI
                 int pCount = productService.GetAll().Rows.Count;
                 int cCount = customerService.GetAll().Rows.Count;
 
+                decimal revenue = orderService.GetRevenue(); // ✅ lấy doanh thu
+
                 lblProducts.Text = pCount.ToString();
                 lblCustomers.Text = cCount.ToString();
-                lblRevenue.Text = "0 đ";
+                lblRevenue.Text = revenue.ToString("N0") + " đ";
             }
             catch
             {
@@ -342,8 +297,8 @@ namespace FashionShop.GUI
             }
         }
 
-        // ===== UI helpers =====
 
+        // ===== UI helpers =====
         private Button MakeSidebarButton(string text)
         {
             var b = new Button
@@ -365,7 +320,6 @@ namespace FashionShop.GUI
 
         private Panel MakeCard(string title, string value, Color headerColor, out Label lblValue)
         {
-            // Card container
             var card = new Panel
             {
                 Width = 300,
@@ -375,20 +329,16 @@ namespace FashionShop.GUI
                 Padding = new Padding(0),
             };
 
-            // tạo viền + bóng nhẹ bằng Panel ngoài
             card.Paint += (s, e) =>
             {
                 var g = e.Graphics;
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-
-                // viền xám rất nhẹ
                 using (var pen = new Pen(Color.FromArgb(230, 230, 230), 1))
                 {
                     g.DrawRectangle(pen, 0, 0, card.Width - 1, card.Height - 1);
                 }
             };
 
-            // Header (màu)
             var header = new Panel
             {
                 Dock = DockStyle.Top,
@@ -407,7 +357,6 @@ namespace FashionShop.GUI
             };
             header.Controls.Add(lblTitle);
 
-            // Body trắng
             var body = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -415,7 +364,6 @@ namespace FashionShop.GUI
             };
             card.Controls.Add(body);
 
-            // Table 1 ô để center chuẩn
             var bodyTable = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -436,16 +384,14 @@ namespace FashionShop.GUI
                 Font = new Font("Segoe UI", 30, FontStyle.Bold),
                 TextAlign = ContentAlignment.MiddleCenter,
                 AutoSize = false,
-                Margin = new Padding(0, 60, 0, 0)   // ✅ lùi xuống 10px
+                Margin = new Padding(0, 60, 0, 0)
             };
-
 
             bodyTable.Controls.Add(lblValue, 0, 0);
 
             return card;
         }
 
- 
         private Button MakeQuickButton(string text, Color color)
         {
             var b = new Button

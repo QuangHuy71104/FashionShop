@@ -1,5 +1,6 @@
 ﻿using FashionShop.DAL;
 using FashionShop.DTO;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -20,5 +21,18 @@ namespace FashionShop.BLL
             decimal total = cart.Sum(x => x.SubTotal);
             return repo.InsertOrder(employeeId, customerId, total, cart);
         }
+
+        public decimal GetRevenue()
+        {
+            try
+            {
+                return repo.GetRevenue();
+            }
+            catch
+            {
+                return 0m;
+            }
+        }
+
     }
 }
