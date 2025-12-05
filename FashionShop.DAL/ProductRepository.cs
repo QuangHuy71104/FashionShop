@@ -125,11 +125,15 @@ namespace FashionShop.DAL
             {
                 conn.Open();
                 var da = new MySqlDataAdapter(
-                    "SELECT product_id, product_name, price, stock FROM products WHERE stock>0 ORDER BY p.product_id ASC", conn);
+                    @"SELECT product_id, product_name, price, stock
+              FROM products
+              WHERE stock > 0
+              ORDER BY product_id ASC", conn);  // ✅ bỏ p.
                 var dt = new DataTable();
                 da.Fill(dt);
                 return dt;
             }
         }
+
     }
 }
