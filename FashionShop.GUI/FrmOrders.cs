@@ -121,7 +121,8 @@ namespace FashionShop.GUI
                 {
                     key = key.Replace("'", "''");
                     productsView.RowFilter =
-                        $"product_code LIKE '%{key}%' OR product_name LIKE '%{key}%'";
+                    $"[product_code] LIKE '%{key}%' OR [product_name] LIKE '%{key}%'";
+
                 }
 
                 dgvProducts.DataSource = productsView.ToTable();
