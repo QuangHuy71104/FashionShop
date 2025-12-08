@@ -75,7 +75,6 @@ namespace FashionShop.DAL
             }
         }
 
-
         // 1) Doanh thu theo ngày trong tháng hiện tại
         public DataTable GetRevenueByDayInMonth()
         {
@@ -159,5 +158,60 @@ namespace FashionShop.DAL
             return dt;
         }
 
+        // 4) History: lọc theo tên khách, tên sản phẩm, và khoảng thời gian
+        public DataTable GetHistory(string kwCustomer, string kwProduct, DateTime? from, DateTime? to)
+        {
+            var dt = new DataTable();
+            using (var conn = DbContext.GetConnection())
+            {
+                conn.Open();
+
+                string sql = @"
+            SELECT 
+                o.order_id,
+                o.order_code,
+                o.order_date,
+                IFNULL(c.customer_name, 'Walk-in') AS customer_name,
+                e.employee_name,
+                o.total_amount,
+
+                p.product_name,
+                od.quantity,
+                od.unit_price,
+                (od.quantity * od.unit_price) AS line_total
+            FROM orders o
+            JOIN order_details od ON o.order_id = od.order_id
+            JOIN products p ON p.product_id = od.product_id
+            LEFT JOIN customers c ON c.customer_id = o.customer_id
+            LEFT JOIN employees e ON e.employee_id = o.employee_id
+            WHERE 1=1
+                AND (@kwCus IS NULL OR c.customer_name LIKE @kwCus)
+                AND (@kwPro IS NULL OR p.product_name LIKE @kwPro)
+                AND (@fromDate IS NULL OR DATE(o.order_date) >= DATE(@fromDate))
+                AND (@toDate IS NULL OR DATE(o.order_date) <= DATE(@toDate))
+            ORDER BY o.order_date DESC, o.order_id DESC;";
+
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@kwCus",
+                        string.IsNullOrWhiteSpace(kwCustomer) ? (object)DBNull.Value : "%" + kwCustomer + "%");
+
+                    cmd.Parameters.AddWithValue("@kwPro",
+                        string.IsNullOrWhiteSpace(kwProduct) ? (object)DBNull.Value : "%" + kwProduct + "%");
+
+                    cmd.Parameters.AddWithValue("@fromDate",
+                        from.HasValue ? (object)from.Value.Date : DBNull.Value);
+
+                    cmd.Parameters.AddWithValue("@toDate",
+                        to.HasValue ? (object)to.Value.Date : DBNull.Value);
+
+                    using (var da = new MySqlDataAdapter(cmd))
+                    {
+                        da.Fill(dt);
+                    }
+                }
+            }
+            return dt;
+        }
     }
 }

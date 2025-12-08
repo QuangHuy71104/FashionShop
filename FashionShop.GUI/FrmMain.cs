@@ -25,9 +25,8 @@ namespace FashionShop.GUI
         Label lblProducts, lblCustomers, lblRevenue;
 
         Panel sidebar, topbar, content;
-        Button btnHome, btnProducts, btnCustomers, btnOrders, btnLogout;
+        Button btnHome, btnProducts, btnCustomers, btnOrders, btnHistory, btnLogout; // ✅ thêm btnHistory
 
-        // ===== Charts =====
         // ===== Charts =====
         private Panel chartWrap;
         private Panel pnlMode1, pnlMode2;     // ✅ 2 mode panel
@@ -47,7 +46,6 @@ namespace FashionShop.GUI
 
             BuildLayout();
 
-
             // ✅ init splitter sau khi handle + layout xong
             Shown += (s, e) =>
             {
@@ -66,7 +64,6 @@ namespace FashionShop.GUI
 
             Load += (s, e) => RefreshDashboard();
             Activated += (s, e) => RefreshDashboard();
-
         }
 
         private void SetSplitterRatio(double ratio)
@@ -193,13 +190,17 @@ namespace FashionShop.GUI
             btnProducts = MakeSidebarButton("Products");
             btnCustomers = MakeSidebarButton("Customers");
             btnOrders = MakeSidebarButton("Sales / Orders");
+            btnHistory = MakeSidebarButton("History"); // ✅ thêm nút History
 
             btnHome.Font = new Font("Segoe UI", 12, FontStyle.Bold);
             btnProducts.Font = new Font("Segoe UI", 12, FontStyle.Bold);
             btnCustomers.Font = new Font("Segoe UI", 12, FontStyle.Bold);
             btnOrders.Font = new Font("Segoe UI", 12, FontStyle.Bold);
+            btnHistory.Font = new Font("Segoe UI", 12, FontStyle.Bold);
 
             // add theo DockTop (để Home nằm trên)
+            // DockTop add theo thứ tự ngược: add trước => nằm dưới
+            menuWrap.Controls.Add(btnHistory);  // ✅ History nằm dưới Orders
             menuWrap.Controls.Add(btnOrders);
             menuWrap.Controls.Add(btnCustomers);
             menuWrap.Controls.Add(btnProducts);
@@ -236,6 +237,10 @@ namespace FashionShop.GUI
                 new FrmOrders(current).ShowDialog();
                 RefreshDashboard();
             };
+            btnHistory.Click += (s, e) =>
+            {
+                new FrmHistory().ShowDialog(); // ✅ mở form lịch sử
+            };
             btnLogout.Click += (s, e) => Close();
 
             // ===== Row 1 - cards =====
@@ -271,11 +276,12 @@ namespace FashionShop.GUI
             }
             cardsWrap.Resize += (s, e) => CenterCards();
             CenterCards();
+
             // ===== Row 3 - charts area =====
             chartWrap = new Panel
             {
-                Dock = DockStyle.Bottom,       
-                Height = 500,               
+                Dock = DockStyle.Bottom,
+                Height = 500,
                 Padding = new Padding(12),
                 BackColor = Color.White
             };
@@ -290,8 +296,21 @@ namespace FashionShop.GUI
             content.Controls.Add(filler);
 
             BuildChartsArea();
-
         }
+
+        private void InitializeComponent()
+        {
+            this.SuspendLayout();
+            // 
+            // FrmMain
+            // 
+            this.ClientSize = new System.Drawing.Size(284, 261);
+            this.Name = "FrmMain";
+            this.Load += new System.EventHandler(this.FrmMain_Load);
+            this.ResumeLayout(false);
+        }
+
+        private void FrmMain_Load(object sender, EventArgs e) { }
 
         // ================= CHARTS UI =================
 
@@ -376,7 +395,6 @@ namespace FashionShop.GUI
                 btnToggleCharts.Text = "Show mode 1 (revenue chart)";
             }
         }
-
 
         private Chart MakeChart(string title, SeriesChartType type)
         {
