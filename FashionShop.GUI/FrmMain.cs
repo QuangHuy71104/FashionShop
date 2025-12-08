@@ -28,14 +28,12 @@ namespace FashionShop.GUI
         Button btnHome, btnProducts, btnCustomers, btnOrders, btnLogout;
 
         // ===== Charts =====
-        // ===== Charts =====
         private Panel chartWrap;
         private Panel pnlMode1, pnlMode2;     // ✅ 2 mode panel
         private Chart chartRevenue, chartTopProducts, chartCategory;
         private TableLayoutPanel mode2Layout;
         private Button btnToggleCharts;
-        private bool showMode1 = true;        // true = Mode 1
-
+        private bool showMode1 = false;        // false = Mode 2 mặc định trước
 
         public FrmMain(Account acc)
         {
@@ -46,7 +44,6 @@ namespace FashionShop.GUI
             BackColor = Color.FromArgb(245, 246, 250);
 
             BuildLayout();
-
 
             // ✅ init splitter sau khi handle + layout xong
             Shown += (s, e) =>
@@ -66,7 +63,6 @@ namespace FashionShop.GUI
 
             Load += (s, e) => RefreshDashboard();
             Activated += (s, e) => RefreshDashboard();
-
         }
 
         private void SetSplitterRatio(double ratio)
@@ -141,6 +137,18 @@ namespace FashionShop.GUI
             splitOuter.Panel2.Controls.Add(content);
             content.BringToFront();
 
+            // ✅ MAIN LAYOUT 2 ROWS: CARDS + CHARTS
+            var mainLayout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                RowCount = 2,
+                ColumnCount = 1,
+                BackColor = content.BackColor
+            };
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 220));  // cards
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // charts
+            content.Controls.Add(mainLayout);
+
             // ===== USER INFO TOP =====
             var userPanel = new Panel
             {
@@ -199,7 +207,6 @@ namespace FashionShop.GUI
             btnCustomers.Font = new Font("Segoe UI", 12, FontStyle.Bold);
             btnOrders.Font = new Font("Segoe UI", 12, FontStyle.Bold);
 
-            // add theo DockTop (để Home nằm trên)
             menuWrap.Controls.Add(btnOrders);
             menuWrap.Controls.Add(btnCustomers);
             menuWrap.Controls.Add(btnProducts);
@@ -241,11 +248,10 @@ namespace FashionShop.GUI
             // ===== Row 1 - cards =====
             var cardsWrap = new Panel
             {
-                Dock = DockStyle.Top,
-                Height = 220,
+                Dock = DockStyle.Fill,
                 BackColor = content.BackColor
             };
-            content.Controls.Add(cardsWrap);
+            mainLayout.Controls.Add(cardsWrap, 0, 0);
 
             var cardsRow = new FlowLayoutPanel
             {
@@ -271,26 +277,18 @@ namespace FashionShop.GUI
             }
             cardsWrap.Resize += (s, e) => CenterCards();
             CenterCards();
-            // ===== Row 3 - charts area =====
+
+            // ===== Row 2 - charts area =====
             chartWrap = new Panel
             {
-                Dock = DockStyle.Bottom,       
-                Height = 500,               
-                Padding = new Padding(12),
-                BackColor = Color.White
-            };
-            content.Controls.Add(chartWrap);
-
-            // một panel filler phía dưới để chiếm chỗ còn lại cho đẹp
-            var filler = new Panel
-            {
                 Dock = DockStyle.Fill,
-                BackColor = content.BackColor
+                Padding = new Padding(12),
+                BackColor = Color.White,
+                Margin = new Padding(0, 10, 0, 0) // hở nhẹ với cards
             };
-            content.Controls.Add(filler);
+            mainLayout.Controls.Add(chartWrap, 0, 1);
 
             BuildChartsArea();
-
         }
 
         // ================= CHARTS UI =================
@@ -300,7 +298,7 @@ namespace FashionShop.GUI
             // ===== Toggle Button =====
             btnToggleCharts = new Button
             {
-                Text = "Show mode 2 (bottom charts)",
+                Text = "Show mode 1 (revenue chart)",
                 Dock = DockStyle.Top,
                 Height = 35,
                 BackColor = Color.FromArgb(33, 150, 243),
@@ -316,7 +314,8 @@ namespace FashionShop.GUI
             pnlMode1 = new Panel
             {
                 Dock = DockStyle.Fill,
-                BackColor = Color.White
+                BackColor = Color.White,
+                Visible = false // mặc định ẩn
             };
             chartWrap.Controls.Add(pnlMode1);
 
@@ -328,7 +327,7 @@ namespace FashionShop.GUI
             {
                 Dock = DockStyle.Fill,
                 BackColor = Color.White,
-                Visible = false // mặc định ẩn
+                Visible = true // mặc định hiện mode 2 trước
             };
             chartWrap.Controls.Add(pnlMode2);
             pnlMode2.BringToFront();
@@ -340,8 +339,8 @@ namespace FashionShop.GUI
                 RowCount = 1,
                 BackColor = Color.White
             };
-            mode2Layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60));
-            mode2Layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40));
+            mode2Layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55));
+            mode2Layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45));
             pnlMode2.Controls.Add(mode2Layout);
 
             chartTopProducts = MakeChart("Top products (this month)", SeriesChartType.Bar);
@@ -350,9 +349,7 @@ namespace FashionShop.GUI
             chartCategory = MakeChart("Revenue by category (this month)", SeriesChartType.Doughnut);
             mode2Layout.Controls.Add(chartCategory, 1, 0);
 
-            // đảm bảo thứ tự đúng
             btnToggleCharts.BringToFront();
-            pnlMode1.BringToFront();
         }
 
         private void ToggleChartsMode()
@@ -364,7 +361,6 @@ namespace FashionShop.GUI
                 pnlMode1.Visible = true;
                 pnlMode2.Visible = false;
                 pnlMode1.BringToFront();
-
                 btnToggleCharts.Text = "Show mode 2 (bottom charts)";
             }
             else
@@ -372,11 +368,9 @@ namespace FashionShop.GUI
                 pnlMode1.Visible = false;
                 pnlMode2.Visible = true;
                 pnlMode2.BringToFront();
-
                 btnToggleCharts.Text = "Show mode 1 (revenue chart)";
             }
         }
-
 
         private Chart MakeChart(string title, SeriesChartType type)
         {
@@ -488,14 +482,21 @@ namespace FashionShop.GUI
         {
             var s = chartCategory.Series[0];
             s.Points.Clear();
-            s.LegendText = "Revenue";
 
             foreach (DataRow r in dt.Rows)
             {
                 string cate = r["category_name"].ToString();
                 decimal rev = Convert.ToDecimal(r["revenue"]);
-                s.Points.AddXY(cate, rev);
+
+                int idx = s.Points.AddXY(cate, rev);
+                var p = s.Points[idx];
+
+                p.LegendText = cate;
+                p.Label = rev.ToString("N0");
+                // p.Label = "#PERCENT{P0}"; // nếu muốn hiện %
             }
+
+            s.LegendText = "";
         }
 
         // ====== Refresh dashboard numbers ======
@@ -506,13 +507,13 @@ namespace FashionShop.GUI
                 int pCount = productService.GetAll().Rows.Count;
                 int cCount = customerService.GetAll().Rows.Count;
 
-                decimal revenue = orderService.GetRevenue(); // ✅ lấy doanh thu
+                decimal revenue = orderService.GetRevenue();
 
                 lblProducts.Text = pCount.ToString();
                 lblCustomers.Text = cCount.ToString();
                 lblRevenue.Text = revenue.ToString("N0") + " đ";
 
-                LoadCharts(); // ✅ load chart luôn
+                LoadCharts();
             }
             catch
             {

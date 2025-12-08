@@ -23,6 +23,10 @@ namespace FashionShop.GUI
         private TextBox txtSearch;
         private Button btnAdd, btnRemove, btnCheckout, btnSearch;
 
+        private int? selectedProductId = null;   // sản phẩm đang chọn
+        private bool isUpdateMode = false;       // đang ở chế độ update hay add
+
+
         // ===== Payment/Points UI labels =====
         private Label lblRawTotal, lblDiscount, lblDiscountHint, lblFinalTotal;
         private Label lblOldPoints, lblEarnPoints, lblAfterPoints;
@@ -57,8 +61,8 @@ namespace FashionShop.GUI
 
             // ===== Form base giống Products =====
             Text = "Sales / Orders";
-            MinimumSize = new Size(1100, 650);
-            Size = new Size(1250, 720);
+            MinimumSize = new Size(1300, 650);
+            Size = new Size(1500, 720);
             StartPosition = FormStartPosition.CenterScreen;
             BackColor = Color.White;
             Font = new Font("Segoe UI", 10f);
@@ -186,6 +190,8 @@ namespace FashionShop.GUI
                 BorderStyle = BorderStyle.FixedSingle,
             };
             StyleGrid(dgvProducts);
+            dgvProducts.CellClick += DgvProducts_CellClick;
+
 
             // Bottom qty + add
             var pnlBottomLeft = new Panel
@@ -211,6 +217,12 @@ namespace FashionShop.GUI
                 Width = 90,
                 Location = new Point(45, 8)
             };
+
+            nudQty.ValueChanged += (s, e) =>
+            {
+                if (nudQty.Value < 1) nudQty.Value = 1;
+            };
+
 
             btnAdd = MakeButton("Add to Cart", Color.FromArgb(33, 150, 243));
             btnAdd.Width = 150;
@@ -251,6 +263,8 @@ namespace FashionShop.GUI
                 BorderStyle = BorderStyle.FixedSingle,
             };
             StyleGrid(dgvCart);
+            dgvCart.CellClick += DgvCart_CellClick;
+
 
             // ================= Payment Summary =================
             var pnlInfo = new TableLayoutPanel
@@ -429,14 +443,18 @@ namespace FashionShop.GUI
             // ===== Split width đẹp lúc mở =====
             Shown += (s, e) =>
             {
-                split.Panel1MinSize = 420;
-                split.Panel2MinSize = 520;
+                split.Panel1MinSize = 500;
+                split.Panel2MinSize = 500;
 
-                int desiredLeft = 520;
+                //chia 50/50
+                int half = split.Width / 2;
+
+                // đảm bảo không nhỏ hơn min size
                 int maxLeft = split.Width - split.Panel2MinSize;
                 split.SplitterDistance = Math.Max(split.Panel1MinSize,
-                                          Math.Min(desiredLeft, maxLeft));
+                                          Math.Min(half, maxLeft));
             };
+
 
             // ===== Events logic cũ =====
             btnAdd.Click += AddToCart;
@@ -616,15 +634,30 @@ namespace FashionShop.GUI
         }
 
         // ================= BUSINESS LOGIC =================
-
         private void AddToCart(object sender, EventArgs e)
         {
-            if (dgvProducts.CurrentRow == null) return;
+            // ưu tiên sp đang chọn (từ products hoặc cart)
+            int pid;
 
-            int pid = Convert.ToInt32(dgvProducts.CurrentRow.Cells["product_id"].Value);
-            string pname = dgvProducts.CurrentRow.Cells["product_name"].Value.ToString();
-            decimal price = Convert.ToDecimal(dgvProducts.CurrentRow.Cells["price"].Value);
-            int stock = Convert.ToInt32(dgvProducts.CurrentRow.Cells["stock"].Value);
+            if (selectedProductId.HasValue)
+                pid = selectedProductId.Value;
+            else
+            {
+                if (dgvProducts.CurrentRow == null) return;
+                pid = Convert.ToInt32(dgvProducts.CurrentRow.Cells["product_id"].Value);
+            }
+
+            // lấy row sản phẩm từ productsTable để chắc đúng dữ liệu
+            var prodRow = productsTable.AsEnumerable()
+                .FirstOrDefault(x => x.Field<int>("product_id") == pid);
+
+            if (prodRow == null) return;
+
+            string pname = prodRow["product_name"].ToString();
+            decimal price = Convert.ToDecimal(prodRow["price"]);
+            string size = prodRow.Table.Columns.Contains("size") ? prodRow["size"].ToString() : "";
+            string color = prodRow.Table.Columns.Contains("color") ? prodRow["color"].ToString() : "";
+            int stock = Convert.ToInt32(prodRow["stock"]);
             int qty = (int)nudQty.Value;
 
             if (qty > stock)
@@ -634,28 +667,47 @@ namespace FashionShop.GUI
             }
 
             var ex = cart.FirstOrDefault(x => x.ProductId == pid);
-            if (ex != null)
+
+            if (isUpdateMode && ex != null)
             {
-                if (ex.Quantity + qty > stock)
-                {
-                    MessageBox.Show("Over stock");
-                    return;
-                }
-                ex.Quantity += qty;
+                ex.Quantity = qty; // update qty
             }
             else
             {
-                cart.Add(new OrderDetail
+                if (ex != null)
                 {
-                    ProductId = pid,
-                    ProductName = pname,
-                    Quantity = qty,
-                    UnitPrice = price
-                });
+                    if (ex.Quantity + qty > stock)
+                    {
+                        MessageBox.Show("Over stock");
+                        return;
+                    }
+                    ex.Quantity += qty;
+                }
+                else
+                {
+                    cart.Add(new OrderDetail
+                    {
+                        ProductId = pid,
+                        ProductName = pname,
+                        Quantity = qty,
+                        UnitPrice = price,
+                        Size = size,
+                        Color = color,
+                        Stock = stock
+                    });
+                }
             }
 
             RefreshCart();
+
+            // reset mode
+            nudQty.Value = 1;
+            isUpdateMode = false;
+            selectedProductId = null;
+            btnAdd.Text = "Add to Cart";
+            btnAdd.BackColor = Color.FromArgb(33, 150, 243);
         }
+
 
         private void RemoveFromCart(object sender, EventArgs e)
         {
@@ -665,50 +717,69 @@ namespace FashionShop.GUI
             cart.RemoveAll(x => x.ProductId == pid);
 
             RefreshCart();
+
+            isUpdateMode = false;
+            selectedProductId = null;
+            btnAdd.Text = "Add to Cart";
+            btnAdd.BackColor = Color.FromArgb(33, 150, 243);
+            nudQty.Value = 1;
+
         }
 
         private void RefreshCart()
-{
-    dgvCart.DataSource = null;
-    dgvCart.DataSource = cart.Select(x => new
-    {
-        x.ProductId,
-        x.ProductName,
-        x.Quantity,
-        x.UnitPrice,
-        x.SubTotal
-    }).ToList();
+        {
+            dgvCart.DataSource = null;
 
-    decimal rawTotal = cart.Sum(x => x.SubTotal);
+            dgvCart.DataSource = cart.Select(x => new
+            {
+                x.ProductId,
+                x.ProductName,
 
-    int newPoints = (int)(rawTotal / 50000m); // 1 point = 50,000đ
-    int afterPoints = oldPoints + newPoints;
+                // ✅ thêm 3 cột giống Products
+                x.Size,
+                x.Color,
+                x.Stock,
 
-    discountRate = afterPoints >= 100 ? 0.10m : 0m;
-    decimal finalTotal = rawTotal * (1 - discountRate);
+                x.Quantity,
+                x.UnitPrice,
+                x.SubTotal
+            }).ToList();
 
-    // ===== Payment UI =====
-    lblRawTotal.Text = $"{rawTotal:N0} đ";
+            // (tuỳ chọn) rename header cho đẹp
+            if (dgvCart.Columns["ProductId"] != null) dgvCart.Columns["ProductId"].HeaderText = "ProductId";
+            if (dgvCart.Columns["ProductName"] != null) dgvCart.Columns["ProductName"].HeaderText = "ProductName";
+            if (dgvCart.Columns["UnitPrice"] != null) dgvCart.Columns["UnitPrice"].HeaderText = "UnitPrice";
+            if (dgvCart.Columns["SubTotal"] != null) dgvCart.Columns["SubTotal"].HeaderText = "SubTotal";
 
-    lblDiscount.Text = discountRate > 0 ? "10%" : "0%";
-    lblDiscount.ForeColor = discountRate > 0
-        ? Color.FromArgb(76, 175, 80)
-        : Color.FromArgb(244, 67, 54);
+            // ===== tính tiền/points như cũ =====
+            decimal rawTotal = cart.Sum(x => x.SubTotal);
 
-    lblDiscountHint.Text = afterPoints >= 100
-        ? "Eligible for 10% off"
-        : "Need 100 points to get 10% off";
-    lblDiscountHint.ForeColor = afterPoints >= 100
-        ? Color.FromArgb(76, 175, 80)
-        : Color.Gray;
+            int newPoints = (int)(rawTotal / 50000m); // 1 point = 50,000đ
+            int afterPoints = oldPoints + newPoints;
 
-    lblFinalTotal.Text = $"{finalTotal:N0} đ";
+            discountRate = afterPoints >= 100 ? 0.10m : 0m;
+            decimal finalTotal = rawTotal * (1 - discountRate);
 
-    // ===== Points UI =====
-    lblOldPoints.Text = oldPoints.ToString("N0");
-    lblEarnPoints.Text = "+" + newPoints.ToString("N0");
-    lblAfterPoints.Text = afterPoints.ToString("N0");
-}
+            lblRawTotal.Text = $"{rawTotal:N0} đ";
+
+            lblDiscount.Text = discountRate > 0 ? "10%" : "0%";
+            lblDiscount.ForeColor = discountRate > 0
+                ? Color.FromArgb(76, 175, 80)
+                : Color.FromArgb(244, 67, 54);
+
+            lblDiscountHint.Text = afterPoints >= 100
+                ? "Eligible for 10% off"
+                : "Need 100 points to get 10% off";
+            lblDiscountHint.ForeColor = afterPoints >= 100
+                ? Color.FromArgb(76, 175, 80)
+                : Color.Gray;
+
+            lblFinalTotal.Text = $"{finalTotal:N0} đ";
+
+            lblOldPoints.Text = oldPoints.ToString("N0");
+            lblEarnPoints.Text = "+" + newPoints.ToString("N0");
+            lblAfterPoints.Text = afterPoints.ToString("N0");
+        }
 
 
         private void Checkout(object sender, EventArgs e)
@@ -772,7 +843,88 @@ namespace FashionShop.GUI
             // reset lại oldPoints nếu bạn muốn về 0 khi bỏ chọn khách
             // oldPoints = 0;
 
+            isUpdateMode = false;
+            selectedProductId = null;
+            btnAdd.Text = "Add to Cart";
+            btnAdd.BackColor = Color.FromArgb(33, 150, 243);
+            nudQty.Value = 1;
+
+
             RefreshCart();
         }
+
+
+        // Click 1 dòng sản phẩm: nudQty = qty trong cart nếu có, không có thì =1
+        private void DgvProducts_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+
+            var r = dgvProducts.Rows[e.RowIndex];
+
+            int pid = Convert.ToInt32(r.Cells["product_id"].Value);
+            int stock = Convert.ToInt32(r.Cells["stock"].Value);
+
+            selectedProductId = pid;
+
+            nudQty.Minimum = 1;
+            nudQty.Maximum = Math.Max(1, stock);
+
+            var ex = cart.FirstOrDefault(x => x.ProductId == pid);
+
+            if (ex != null)
+            {
+                // đã có trong cart → đồng bộ qty + chuyển mode Update
+                nudQty.Value = Math.Min(ex.Quantity, nudQty.Maximum);
+
+                isUpdateMode = true;
+                btnAdd.Text = "Update Qty";
+                btnAdd.BackColor = Color.FromArgb(255, 152, 0); // cam cho dễ phân biệt
+            }
+            else
+            {
+                //chưa có → mode Add
+                nudQty.Value = 1;
+
+                isUpdateMode = false;
+                btnAdd.Text = "Add to Cart";
+                btnAdd.BackColor = Color.FromArgb(33, 150, 243); // xanh như cũ
+            }
+        }
+
+
+        // Click 1 dòng trong cart: nudQty nhảy theo qty hiện tại + chuyển sang update mode
+        private void DgvCart_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+
+            int pid = Convert.ToInt32(dgvCart.Rows[e.RowIndex].Cells["ProductId"].Value);
+
+            var ex = cart.FirstOrDefault(x => x.ProductId == pid);
+            if (ex == null)
+            {
+                nudQty.Value = 1;
+                return;
+            }
+
+            selectedProductId = pid; // lưu lại sp đang chọn
+
+            // lấy stock từ productsTable để set Maximum
+            int stock = 999;
+            var prodRow = productsTable?.AsEnumerable()
+                .FirstOrDefault(x => x.Field<int>("product_id") == pid);
+
+            if (prodRow != null)
+                stock = prodRow.Field<int>("stock");
+
+            nudQty.Minimum = 1;
+            nudQty.Maximum = Math.Max(1, stock);
+            nudQty.Value = Math.Min(ex.Quantity, nudQty.Maximum);
+
+            // chuyển sang update mode giống click product
+            isUpdateMode = true;
+            btnAdd.Text = "Update Qty";
+            btnAdd.BackColor = Color.FromArgb(255, 152, 0);
+        }
+
     }
 }

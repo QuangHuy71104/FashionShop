@@ -7,6 +7,11 @@
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
 
+        public string Size { get; set; }
+        public string Color { get; set; }
+        public int Stock { get; set; }
+
         public decimal SubTotal => UnitPrice * Quantity;
+
     }
 }

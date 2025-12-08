@@ -142,14 +142,17 @@ namespace FashionShop.DAL
             {
                 conn.Open();
                 var da = new MySqlDataAdapter(
-                    @"SELECT product_id, product_name, price, stock
-                      FROM products
-                      WHERE stock > 0
-                      ORDER BY product_id ASC", conn);
+                       @"SELECT p.product_id, p.product_name, p.size, p.color, p.gender, 
+                                 p.price, p.stock
+                          FROM products p
+                          WHERE p.stock > 0
+                          ORDER BY p.product_id ASC", conn);
+
                 var dt = new DataTable();
                 da.Fill(dt);
                 return dt;
             }
         }
+
     }
 }

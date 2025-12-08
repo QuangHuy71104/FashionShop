@@ -66,8 +66,8 @@ namespace FashionShop.GUI
 
             // ===== Form base =====
             Text = "Products Management";
-            MinimumSize = new Size(1100, 650);
-            Size = new Size(1400, 700);
+            MinimumSize = new Size(1100, 750);
+            Size = new Size(1400, 750);
             StartPosition = FormStartPosition.CenterScreen;
             BackColor = Color.White;
             Font = new Font("Segoe UI", 10f);
@@ -242,7 +242,7 @@ namespace FashionShop.GUI
             lblDropHint = new Label
             {
                 Text = "Drag and drop product image here",
-                ForeColor = Color.DimGray,
+                ForeColor = Color.Black,
                 AutoSize = true,
                 Font = new Font("Segoe UI", 9.5f),
             };
@@ -256,20 +256,30 @@ namespace FashionShop.GUI
                 Cursor = Cursors.Hand
             };
             btnChooseImage.FlatAppearance.BorderColor = Color.Silver;
-
             var overlayLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 3,
+                RowCount = 4,
             };
-            overlayLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 40));
-            overlayLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            overlayLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-            overlayLayout.Controls.Add(new Panel(), 0, 0); // spacer
+            overlayLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));   // spacer trên
+            overlayLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // label
+            overlayLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // button
+            overlayLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));   // spacer dưới
+
+            // ✅ khoảng cách nhẹ giữa chữ và nút
+            lblDropHint.Margin = new Padding(0, 0, 0, 8);      // cách dưới label 8px
+            btnChooseImage.Margin = new Padding(0, 4, 0, 0);   // cách trên nút 4px
+
+            lblDropHint.Anchor = AnchorStyles.None;
+            btnChooseImage.Anchor = AnchorStyles.None;
+
+            overlayLayout.Controls.Add(new Panel(), 0, 0); // spacer trên
             overlayLayout.Controls.Add(lblDropHint, 0, 1);
             overlayLayout.Controls.Add(btnChooseImage, 0, 2);
+            overlayLayout.Controls.Add(new Panel(), 0, 3); // spacer dưới
+
 
             lblDropHint.Anchor = AnchorStyles.None;
             btnChooseImage.Anchor = AnchorStyles.None;
@@ -578,6 +588,7 @@ namespace FashionShop.GUI
                 }
 
                 // ẩn hint
+                picPreview.Visible = true;
                 lblDropHint.Visible = false;
                 btnChooseImage.Visible = false;
             }
@@ -591,6 +602,8 @@ namespace FashionShop.GUI
         {
             picPreview.Image = null;
             selectedImagePath = null;
+
+            picPreview.Visible = false;
             lblDropHint.Visible = true;
             btnChooseImage.Visible = true;
         }
