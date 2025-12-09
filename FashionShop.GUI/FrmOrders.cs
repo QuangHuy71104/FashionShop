@@ -22,6 +22,8 @@ namespace FashionShop.GUI
         private Label lblTotal, lblPoints;
         private TextBox txtSearch;
         private Button btnAdd, btnRemove, btnCheckout, btnSearch;
+        private Button btnNewCustomer;
+
 
         private int? selectedProductId = null;   // sản phẩm đang chọn
         private bool isUpdateMode = false;       // đang ở chế độ update hay add
@@ -295,12 +297,47 @@ namespace FashionShop.GUI
                 TextAlign = ContentAlignment.MiddleLeft
             }, 0, 0);
 
+            // panel chứa combo + nút New
+            var pnlCustomer = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                Margin = new Padding(0)
+            };
+            pnlCustomer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            pnlCustomer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120)); // rộng nút
+
             cboCustomers = new ComboBox
             {
                 Dock = DockStyle.Fill,
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
-            pnlInfo.Controls.Add(cboCustomers, 1, 0);
+
+            btnNewCustomer = MakeButton("New Customer", Color.FromArgb(33, 150, 243));
+
+            // KHÔNG fill nữa để khỏi bị cao
+            btnNewCustomer.Dock = DockStyle.None;
+            btnNewCustomer.Anchor = AnchorStyles.Left | AnchorStyles.Top;
+
+            // set size gọn lại
+            btnNewCustomer.Width = 110;
+            btnNewCustomer.Height = cboCustomers.Height - 2;   // hoặc bạn set cứng 28
+            btnNewCustomer.Margin = new Padding(6, 4, 0, 4);
+            btnNewCustomer.Font = new Font("Segoe UI Semibold", 9.5f);
+
+            cboCustomers = new ComboBox
+            {
+                Dock = DockStyle.Fill,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Margin = new Padding(0, 6, 0, 6)  // canh giữa dọc giống nút
+            };
+
+
+            pnlCustomer.Controls.Add(cboCustomers, 0, 0);
+            pnlCustomer.Controls.Add(btnNewCustomer, 1, 0);
+
+            pnlInfo.Controls.Add(pnlCustomer, 1, 0);
+
 
             // --- Row 1: Sub total ---
             pnlInfo.Controls.Add(new Label
@@ -460,6 +497,30 @@ namespace FashionShop.GUI
             btnAdd.Click += AddToCart;
             btnRemove.Click += RemoveFromCart;
             btnCheckout.Click += Checkout;
+            btnNewCustomer.Click += (s, e) =>
+            {
+                // mở form Customers để thêm mới
+                using (var f = new FrmCustomers())
+                {
+                    f.ShowDialog();
+                }
+
+
+                // reload list khách sau khi đóng form
+                var dt = customerService.GetForCombo();
+                cboCustomers.DataSource = dt;
+                cboCustomers.DisplayMember = "customer_name";
+                cboCustomers.ValueMember = "customer_id";
+
+                // auto chọn khách mới nhất (dòng cuối)
+                if (dt.Rows.Count > 0)
+                    cboCustomers.SelectedIndex = dt.Rows.Count - 1;
+                else
+                    cboCustomers.SelectedIndex = -1;
+
+                RefreshCart();
+            };
+
 
             // Load data
             Load += (s, e) =>
@@ -706,6 +767,9 @@ namespace FashionShop.GUI
             selectedProductId = null;
             btnAdd.Text = "Add to Cart";
             btnAdd.BackColor = Color.FromArgb(33, 150, 243);
+            // Enter = Add to Cart
+            this.AcceptButton = btnAdd;
+
         }
 
 
@@ -735,7 +799,7 @@ namespace FashionShop.GUI
                 x.ProductId,
                 x.ProductName,
 
-                // ✅ thêm 3 cột giống Products
+                // thêm 3 cột giống Products
                 x.Size,
                 x.Color,
                 x.Stock,

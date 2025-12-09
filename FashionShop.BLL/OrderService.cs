@@ -25,47 +25,41 @@ namespace FashionShop.BLL
 
         public decimal GetRevenue()
         {
-            try
-            {
-                return repo.GetRevenue();
-            }
-            catch
-            {
-                return 0m;
-            }
+            try { return repo.GetRevenue(); }
+            catch { return 0m; }
         }
-
-        // ====== CHART METHODS ======
 
         public DataTable GetRevenueByDayInMonth()
         {
-            try
-            {
-                return repo.GetRevenueByDayInMonth();
-            }
-            catch
-            {
-                return new DataTable();
-            }
+            try { return repo.GetRevenueByDayInMonth(); }
+            catch { return new DataTable(); }
         }
 
         public DataTable GetTopProductsInMonth(int top)
         {
-            try
-            {
-                return repo.GetTopProductsInMonth(top);
-            }
-            catch
-            {
-                return new DataTable();
-            }
+            try { return repo.GetTopProductsInMonth(top); }
+            catch { return new DataTable(); }
         }
 
         public DataTable GetRevenueByCategoryInMonth()
         {
+            try { return repo.GetRevenueByCategoryInMonth(); }
+            catch { return new DataTable(); }
+        }
+
+        // ================= HISTORY =================
+
+        // overload không tham số -> fix lỗi CS7036
+        public DataTable GetHistory()
+        {
+            return repo.GetHistory("", "", null, null);
+        }
+
+        public DataTable GetHistory(string kwCustomer, string kwProduct, DateTime? from, DateTime? to)
+        {
             try
             {
-                return repo.GetRevenueByCategoryInMonth();
+                return repo.GetHistory(kwCustomer, kwProduct, from, to);
             }
             catch
             {

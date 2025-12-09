@@ -268,7 +268,7 @@ namespace FashionShop.GUI
             overlayLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // button
             overlayLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));   // spacer dưới
 
-            // ✅ khoảng cách nhẹ giữa chữ và nút
+            // khoảng cách nhẹ giữa chữ và nút
             lblDropHint.Margin = new Padding(0, 0, 0, 8);      // cách dưới label 8px
             btnChooseImage.Margin = new Padding(0, 4, 0, 0);   // cách trên nút 4px
 
@@ -328,7 +328,7 @@ namespace FashionShop.GUI
             leftLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
             leftLayout.Controls.Add(tbl, 0, 0);
-            leftLayout.Controls.Add(pnlImageDrop, 0, 1); // ✅ thêm khung ở đây
+            leftLayout.Controls.Add(pnlImageDrop, 0, 1); // thêm khung ở đây
             leftLayout.Controls.Add(btnGrid, 0, 2);
 
             gbInput.Controls.Clear();
