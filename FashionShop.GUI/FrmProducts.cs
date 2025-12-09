@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows.Forms;
 using FashionShop.BLL;
 using FashionShop.DTO;
+using System.Globalization;
 
 namespace FashionShop.GUI
 {
@@ -35,30 +36,32 @@ namespace FashionShop.GUI
 
     public class FrmProducts : Form
     {
-        ProductService service = new ProductService();
-        private Account current;
+        private readonly ProductService service = new ProductService();
+        private readonly Account current;
 
-        DataGridView dgv;
+        private DataGridView dgv;
 
-        TextBox txtCode, txtName, txtSize, txtColor, txtSearch;
-        ComboBox cboCategory, cboGender;
-        NumericUpDown nudPrice, nudStock;
+        private TextBox txtCode, txtName, txtSearch;
+        private ComboBox cboCategory, cboGender, cboSize, cboColor;
+        private NumericUpDown nudPrice, nudStock;
 
-        Button btnAdd, btnUpd, btnDel, btnReload, btnSearch;
+        private Button btnAdd, btnUpd, btnDel, btnReload, btnSearch;
 
-        // ===== search helpers (giống FrmOrders) =====
-        private DataTable productsTable;   // bảng gốc
-        private DataView productsView;     // view để search
+        // ===== search helpers =====
+        private DataTable productsTable;
+        private DataView productsView;
         private string colCode;
         private string colName;
         private readonly string hintSearch = "Type product code, name, category, color...";
 
         // Image Dropzone controls
-        DashedDropPanel pnlImageDrop;
-        PictureBox picPreview;
-        Label lblDropHint;
-        Button btnChooseImage;
-        string selectedImagePath; // lưu path ảnh hiện tại
+        private DashedDropPanel pnlImageDrop;
+        private PictureBox picPreview;
+        private Label lblDropHint;
+        private Button btnChooseImage;
+        private string selectedImagePath;
+
+        private readonly ColorService colorService = new ColorService();
 
         public FrmProducts(Account acc)
         {
@@ -76,10 +79,15 @@ namespace FashionShop.GUI
             var split = new SplitContainer
             {
                 Dock = DockStyle.Fill,
-                FixedPanel = FixedPanel.None,
-                IsSplitterFixed = false,
-                BackColor = Color.White
+                FixedPanel = FixedPanel.Panel1,   // cố định panel trái (tùy bạn muốn cố định bên nào)
+                IsSplitterFixed = true,           // khóa không cho kéo
+                BackColor = Color.White,
+                SplitterWidth = 2                 // optional: cho đường giữa mảnh lại
             };
+
+            // optional: để cursor không hiện dạng kéo
+            split.SplitterMoved += (s, e) => split.SplitterDistance = split.SplitterDistance;
+            split.Cursor = Cursors.Default;
             Controls.Add(split);
 
             // ================= LEFT: Input =================
@@ -93,7 +101,6 @@ namespace FashionShop.GUI
                 Padding = new Padding(12)
             };
 
-            // TableLayout auto-size để không ăn khoảng trống
             var tbl = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
@@ -133,20 +140,89 @@ namespace FashionShop.GUI
             txtCode = new TextBox();
             txtName = new TextBox();
 
+            // Category combobox + manage button in a panel
             cboCategory = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
 
             cboGender = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
             cboGender.Items.AddRange(new object[] { "Men", "Women", "Unisex" });
             cboGender.SelectedIndex = 0;
 
-            txtSize = new TextBox();
-            txtColor = new TextBox();
+            // Size + Color dropdowns (wrapped to avoid overflow)
+            cboSize = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
+            cboColor = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
+
+            // icon 3 chấm/bánh răng bạn chuẩn bị sẵn (xem mục 4)
+            Image icoManage = Properties.Resources.dots; // ví dụ tên dots
+
+            var pnlCategory = WrapComboWithIcon(
+                cboCategory,
+                icoManage,
+                (s, e) =>
+                {
+                    if (!IsAdmin()) return;
+                    using (var f = new FrmCategories(current))
+                    f.ShowDialog();
+                    LoadCategories(); // ✅ reload lại category sau CRUD
+                },
+                comboWidth: 200,
+                gap: 6
+                );
+
+            var pnlColor = WrapComboWithIcon(
+                cboColor,
+                icoManage,
+                (s, e) =>
+                {
+                    if (!IsAdmin()) return;
+                    using (var f = new FrmColors(current)) f.ShowDialog();
+                    LoadColors();
+                },
+                comboWidth: 200,
+                gap: 6
+            );
 
             nudPrice = new NumericUpDown
             {
                 Maximum = 1000000000,
                 DecimalPlaces = 0,
-                ThousandsSeparator = true
+                ThousandsSeparator = true,
+                Dock = DockStyle.Fill
+            };
+
+            // label "000" gợi ý
+            var lblZeros = new Label
+            {
+                Text = " ,000",
+                ForeColor = Color.Gray,
+                Font = new Font("Segoe UI", 10f, FontStyle.Italic),
+                AutoSize = true,
+                Dock = DockStyle.Right,
+                Padding = new Padding(0, 4, 6, 0),  // canh cho đẹp
+                TextAlign = ContentAlignment.MiddleRight
+            };
+            // panel bọc lại để nhìn như suffix nằm trong ô
+            var priceWrap = new Panel
+            {
+                Height = nudPrice.Height,
+                Dock = DockStyle.Top,
+                Padding = new Padding(0),
+                BackColor = Color.White
+            };
+
+            priceWrap.Controls.Add(nudPrice);
+            priceWrap.Controls.Add(lblZeros);
+
+            // Price nhập theo đơn vị nghìn: Enter bỏ 000, Leave tự thêm 000
+            nudPrice.Enter += (s, e) =>
+            {
+                var v = nudPrice.Value;
+                if (v >= 1000 && v % 1000 == 0)
+                    nudPrice.Value = v / 1000; // show phần nghìn để dễ sửa
+            };
+
+            nudPrice.Leave += (s, e) =>
+            {
+                nudPrice.Value = nudPrice.Value * 1000; // tự thêm 000 khi rời ô
             };
 
             nudStock = new NumericUpDown
@@ -159,11 +235,10 @@ namespace FashionShop.GUI
             // add rows
             AddRow("Code", txtCode);
             AddRow("Name", txtName);
-            AddRow("Category", cboCategory);
+            AddRow("Category", pnlCategory);
+            AddRow("Color", pnlColor);
             AddRow("Gender", cboGender);
-            AddRow("Size", txtSize);
-            AddRow("Color", txtColor);
-            AddRow("Price", nudPrice);
+            AddRow("Price", priceWrap);
             AddRow("Stock", nudStock);
 
             // ===== Buttons grid =====
@@ -228,7 +303,6 @@ namespace FashionShop.GUI
                 BackColor = Color.WhiteSmoke
             };
 
-            // overlay text + button ở giữa
             var overlay = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -237,7 +311,6 @@ namespace FashionShop.GUI
 
             overlay.Cursor = Cursors.Hand;
             overlay.Click += (s, e) => ChooseImage();
-
 
             lblDropHint = new Label
             {
@@ -256,6 +329,7 @@ namespace FashionShop.GUI
                 Cursor = Cursors.Hand
             };
             btnChooseImage.FlatAppearance.BorderColor = Color.Silver;
+
             var overlayLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -263,26 +337,21 @@ namespace FashionShop.GUI
                 RowCount = 4,
             };
 
-            overlayLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));   // spacer trên
-            overlayLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // label
-            overlayLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // button
-            overlayLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));   // spacer dưới
+            overlayLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+            overlayLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            overlayLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            overlayLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
 
-            // khoảng cách nhẹ giữa chữ và nút
-            lblDropHint.Margin = new Padding(0, 0, 0, 8);      // cách dưới label 8px
-            btnChooseImage.Margin = new Padding(0, 4, 0, 0);   // cách trên nút 4px
+            lblDropHint.Margin = new Padding(0, 0, 0, 8);
+            btnChooseImage.Margin = new Padding(0, 4, 0, 0);
 
             lblDropHint.Anchor = AnchorStyles.None;
             btnChooseImage.Anchor = AnchorStyles.None;
 
-            overlayLayout.Controls.Add(new Panel(), 0, 0); // spacer trên
+            overlayLayout.Controls.Add(new Panel(), 0, 0);
             overlayLayout.Controls.Add(lblDropHint, 0, 1);
             overlayLayout.Controls.Add(btnChooseImage, 0, 2);
-            overlayLayout.Controls.Add(new Panel(), 0, 3); // spacer dưới
-
-
-            lblDropHint.Anchor = AnchorStyles.None;
-            btnChooseImage.Anchor = AnchorStyles.None;
+            overlayLayout.Controls.Add(new Panel(), 0, 3);
 
             overlay.Controls.Add(overlayLayout);
 
@@ -312,7 +381,6 @@ namespace FashionShop.GUI
             picPreview.Click += (s, e) => ChooseImage();
             lblDropHint.Click += (s, e) => ChooseImage();
 
-            // ===== Left layout =====
             var leftLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
@@ -328,7 +396,7 @@ namespace FashionShop.GUI
             leftLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
             leftLayout.Controls.Add(tbl, 0, 0);
-            leftLayout.Controls.Add(pnlImageDrop, 0, 1); // thêm khung ở đây
+            leftLayout.Controls.Add(pnlImageDrop, 0, 1);
             leftLayout.Controls.Add(btnGrid, 0, 2);
 
             gbInput.Controls.Clear();
@@ -338,7 +406,6 @@ namespace FashionShop.GUI
             // ================= RIGHT: Search + Grid =================
             split.Panel2.Padding = new Padding(12);
 
-            // ===== Search bar giống FrmOrders =====
             var pnlSearch = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
@@ -372,7 +439,6 @@ namespace FashionShop.GUI
             btnSearch.TextImageRelation = TextImageRelation.Overlay;
             btnSearch.Padding = new Padding(0);
 
-            // Placeholder
             txtSearch.Text = hintSearch;
             txtSearch.ForeColor = Color.Gray;
 
@@ -394,7 +460,6 @@ namespace FashionShop.GUI
                 }
             };
 
-            // Click nút đỏ: clear + show full list
             btnSearch.Click += (s, e) =>
             {
                 txtSearch.Text = hintSearch;
@@ -404,13 +469,11 @@ namespace FashionShop.GUI
                     productsView.RowFilter = "";
             };
 
-            // live search khi gõ
             txtSearch.TextChanged += (s, e) =>
             {
                 if (txtSearch.Focused) ApplySearch();
             };
 
-            // Enter để search luôn
             txtSearch.KeyDown += (s, e) =>
             {
                 if (e.KeyCode == Keys.Enter)
@@ -420,12 +483,12 @@ namespace FashionShop.GUI
                 }
             };
 
-            // ===== Grid =====
             dgv = new DataGridView
             {
                 Dock = DockStyle.Fill,
                 ReadOnly = true,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None, // cho phép rộng hơn
+                ScrollBars = ScrollBars.Both,                               // bật cả 2 scroll
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
                 RowHeadersVisible = false,
@@ -434,34 +497,41 @@ namespace FashionShop.GUI
                 BorderStyle = BorderStyle.FixedSingle,
             };
             dgv.CellClick += Dgv_CellClick;
+            // mặc định KHÔNG xuống dòng cho toàn bộ bảng
+            dgv.DefaultCellStyle.WrapMode = DataGridViewTriState.False;
+            dgv.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None;
+            dgv.RowTemplate.Height = 28;   // gọn
+
 
             StyleGrid(dgv);
 
             split.Panel2.Controls.Add(dgv);
             split.Panel2.Controls.Add(pnlSearch);
 
-            // ✅ set width trái phải hợp lý ngay lúc mở
             Shown += (s, e) =>
             {
                 split.Panel1MinSize = 280;
                 split.Panel2MinSize = 450;
 
-                int desiredLeft = 330;
+                int desiredLeft = 400;
                 int maxLeft = split.Width - split.Panel2MinSize;
                 split.SplitterDistance = Math.Max(split.Panel1MinSize,
                                           Math.Min(desiredLeft, maxLeft));
             };
 
-            // ✅ LOAD DATA NGAY TỪ ĐẦU
             Load += (s, e) =>
             {
-                cboCategory.DataSource = service.GetCategories();
-                cboCategory.DisplayMember = "category_name";
-                cboCategory.ValueMember = "category_id";
+                LoadCategories();
+                LoadColors();
 
-                LoadGrid();             // hiển thị list ngay
+                // Size chỉ sổ xuống, không manage
+                cboSize.Items.Clear();
+                cboSize.Items.AddRange(new object[] { "S", "M", "L", "XL", "XXL" });
+                cboSize.SelectedIndex = 0;
+
+                LoadGrid();
                 ApplyRolePermission();
-                ClearImageBox();        // show hint upload lúc mở
+                ClearImageBox();
             };
         }
 
@@ -471,11 +541,55 @@ namespace FashionShop.GUI
 
         private void ReloadProducts()
         {
-            productsTable = service.GetAll();   // GetAll trả DataTable
+            productsTable = service.GetAll();
             ResolveProductColumns();
 
             productsView = productsTable.DefaultView;
             dgv.DataSource = productsView;
+            // tắt autosize để width có hiệu lực
+            foreach (DataGridViewColumn col in dgv.Columns)
+            {
+                col.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            }
+
+            // set width gọn gàng hơn
+            SetColWidth("product_id", 100);
+            SetColWidth("product_code", 100);
+            SetColWidth("product_name", 250);
+            SetColWidth("category_name", 130);
+            SetColWidth("size", 40);
+            SetColWidth("color", 80);
+            SetColWidth("gender", 60);
+            SetColWidth("price", 90);
+            SetColWidth("stock", 50);
+
+            // chỉ product_name được xuống dòng
+            if (dgv.Columns.Contains("product_name"))
+            {
+                var col = dgv.Columns["product_name"];
+                col.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+            }
+
+            // cho phép row tự cao khi product_name dài
+            dgv.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
+
+            // (optional) canh chữ lên trên cho đẹp khi ô cao
+            dgv.Columns["product_name"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.TopLeft;
+
+            // helper local function
+            void SetColWidth(string name, int w)
+            {
+                if (dgv.Columns.Contains(name))
+                    dgv.Columns[name].Width = w;
+            }
+
+            // ===== format price: có dấu phẩy, không .00 =====
+            if (dgv.Columns.Contains("price"))
+            {
+                var colPrice = dgv.Columns["price"];
+                colPrice.DefaultCellStyle.Format = "#,##0"; // 12000 -> 12,000
+                colPrice.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            }
 
             SetupAutoComplete();
             ApplySearch();
@@ -511,7 +625,6 @@ namespace FashionShop.GUI
             {
                 key = key.Replace("'", "''");
 
-                // các cột muốn search
                 string[] cols = {
                     "product_code",
                     "product_name",
@@ -521,10 +634,9 @@ namespace FashionShop.GUI
                     "gender"
                 };
 
-                // chỉ lấy những cột thật sự tồn tại trong DataTable
                 var realCols = cols
                     .Where(c => productsTable.Columns.Contains(c))
-                    .Select(c => $"CONVERT([{c}], 'System.String') LIKE '%{key}%'");
+                    .Select(c => string.Format("CONVERT([{0}], 'System.String') LIKE '%{1}%'", c, key));
 
                 productsView.RowFilter = string.Join(" OR ", realCols);
             }
@@ -581,13 +693,11 @@ namespace FashionShop.GUI
             {
                 selectedImagePath = path;
 
-                // tránh lock file
                 using (var tmp = Image.FromFile(path))
                 {
                     picPreview.Image = new Bitmap(tmp);
                 }
 
-                // ẩn hint
                 picPreview.Visible = true;
                 lblDropHint.Visible = false;
                 btnChooseImage.Visible = false;
@@ -623,7 +733,7 @@ namespace FashionShop.GUI
             return bmp;
         }
 
-        Button MakeButton(string text, Color backColor)
+        private Button MakeButton(string text, Color backColor)
         {
             return new Button
             {
@@ -638,22 +748,21 @@ namespace FashionShop.GUI
             };
         }
 
-        void StyleGrid(DataGridView g)
+        private void StyleGrid(DataGridView g)
         {
             g.EnableHeadersVisualStyles = false;
             g.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(245, 245, 245);
             g.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI Semibold", 10f);
             g.ColumnHeadersDefaultCellStyle.ForeColor = Color.Black;
 
-            // ===== FIX CỨNG Ô =====
             g.AllowUserToResizeColumns = false;
             g.AllowUserToResizeRows = false;
             g.RowHeadersWidthSizeMode = DataGridViewRowHeadersWidthSizeMode.DisableResizing;
             g.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
 
             g.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None;
-            g.RowTemplate.Height = 32;     // chiều cao dòng cố định
-            g.ColumnHeadersHeight = 38;    // header cố định
+            g.RowTemplate.Height = 32;
+            g.ColumnHeadersHeight = 38;
 
             g.DefaultCellStyle.Font = new Font("Segoe UI", 10f);
             g.DefaultCellStyle.SelectionBackColor = Color.FromArgb(33, 150, 243);
@@ -678,8 +787,9 @@ namespace FashionShop.GUI
 
                 txtCode.ReadOnly = true;
                 txtName.ReadOnly = true;
-                txtSize.ReadOnly = true;
-                txtColor.ReadOnly = true;
+
+                cboSize.Enabled = false;
+                cboColor.Enabled = false;
                 nudPrice.Enabled = false;
                 nudStock.Enabled = false;
                 cboCategory.Enabled = false;
@@ -689,22 +799,27 @@ namespace FashionShop.GUI
             }
         }
 
-        // LoadGrid giờ gọi ReloadProducts
-        void LoadGrid() => ReloadProducts();
+        private void LoadGrid() => ReloadProducts();
 
-        Product ReadForm()
+        private Product ReadForm()
         {
+            decimal price = nudPrice.Value;
+
+            // nếu user bấm Add/Update khi đang focus ở nudPrice (lúc Enter đã chia 1000)
+            if (nudPrice.Focused)
+                price *= 1000;
+
             return new Product
             {
                 Code = txtCode.Text.Trim(),
                 Name = txtName.Text.Trim(),
-                CategoryId = Convert.ToInt32(cboCategory.SelectedValue),
+                CategoryId = cboCategory.SelectedValue == null ? 0 : Convert.ToInt32(cboCategory.SelectedValue),
+                ColorId = cboColor.SelectedValue == null ? 0 : Convert.ToInt32(cboColor.SelectedValue),
                 Gender = cboGender.Text,
-                Size = txtSize.Text.Trim(),
-                Color = txtColor.Text.Trim(),
-                Price = nudPrice.Value,
+                Size = cboSize.Text,
+                Price = price,
                 Stock = (int)nudStock.Value,
-                 ImagePath = selectedImagePath
+                ImagePath = selectedImagePath
             };
         }
 
@@ -766,20 +881,22 @@ namespace FashionShop.GUI
 
             txtCode.Text = r.Cells["product_code"].Value?.ToString();
             txtName.Text = r.Cells["product_name"].Value?.ToString();
-            txtSize.Text = r.Cells["size"].Value?.ToString();
-            txtColor.Text = r.Cells["color"].Value?.ToString();
+            cboSize.Text = r.Cells["size"].Value?.ToString();
+            cboColor.Text = r.Cells["color_name"].Value?.ToString();
             cboGender.Text = r.Cells["gender"].Value?.ToString();
+            cboCategory.Text = r.Cells["category_name"].Value?.ToString();
 
-            if (decimal.TryParse(r.Cells["price"].Value?.ToString(), out var price))
+            var priceStr = r.Cells["price"].Value?.ToString();
+            if (decimal.TryParse(priceStr, NumberStyles.Number, CultureInfo.CurrentCulture, out var price))
+            {
                 nudPrice.Value = Math.Min(nudPrice.Maximum, price);
+            }
 
             if (int.TryParse(r.Cells["stock"].Value?.ToString(), out var stock))
                 nudStock.Value = Math.Min(nudStock.Maximum, stock);
 
-            // RESET khung ảnh trước
             ClearImageBox();
 
-            // nếu có cột image_path thì load ảnh theo sản phẩm
             if (dgv.Columns.Contains("image_path"))
             {
                 var path = r.Cells["image_path"].Value?.ToString();
@@ -788,6 +905,83 @@ namespace FashionShop.GUI
                     LoadImage(path);
                 }
             }
+        }
+        // tạo nút "..." nhỏ gọn
+        // Tạo icon nhỏ (PictureBox) thay cho nút "..."
+        private PictureBox CreateManageIcon(Image icon, EventHandler onClick)
+        {
+            var pic = new PictureBox
+            {
+                Image = icon,
+                SizeMode = PictureBoxSizeMode.Zoom,
+                Width = 16,          // <-- CHỈNH độ to icon ở đây
+                Height = 16,
+                Cursor = Cursors.Hand,
+                Dock = DockStyle.Right,
+                Margin = Padding.Empty,
+                Padding = Padding.Empty
+            };
+
+            pic.Click += onClick;
+            return pic;
+        }
+
+        // Bọc ComboBox ngắn + khoảng trắng + icon nhỏ bên phải
+        private Panel WrapComboWithIcon(ComboBox cbo, Image icon, EventHandler onClick, int comboWidth = 190, int gap = 6)
+        {
+            var pnl = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = Padding.Empty
+            };
+
+            // ComboBox ngắn lại (không Fill)
+            cbo.DropDownStyle = ComboBoxStyle.DropDownList;
+            cbo.Dock = DockStyle.Left;
+            cbo.Width = comboWidth;   // <-- CHỈNH độ ngắn combo ở đây
+            cbo.IntegralHeight = false;
+            cbo.Height = 28;
+
+            // khoảng trắng nhỏ giữa combo và icon
+            var spacer = new Panel
+            {
+                Dock = DockStyle.Left,
+                Width = gap           // <-- CHỈNH khoảng trắng ở đây
+            };
+
+            var manageIcon = CreateManageIcon(icon, onClick);
+
+            pnl.Controls.Add(manageIcon);
+            pnl.Controls.Add(spacer);
+            pnl.Controls.Add(cbo);
+
+            return pnl;
+        }
+
+        private void LoadColors()
+        {
+            var dt = service.GetColors();      // lấy từ ProductService
+            cboColor.DataSource = dt;
+            cboColor.DisplayMember = "color_name";
+            cboColor.ValueMember = "color_id";
+            cboColor.SelectedIndex = dt.Rows.Count > 0 ? 0 : -1;
+        }
+
+
+        private bool IsAdmin()
+        {
+            return current != null &&
+                   current.Role != null &&
+                   current.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void LoadCategories()
+        {
+            var dt = service.GetCategories();
+            cboCategory.DataSource = dt;
+            cboCategory.DisplayMember = "category_name";
+            cboCategory.ValueMember = "category_id";
+            cboCategory.SelectedIndex = dt.Rows.Count > 0 ? 0 : -1;
         }
 
     }

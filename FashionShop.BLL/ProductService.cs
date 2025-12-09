@@ -10,7 +10,10 @@ namespace FashionShop.BLL
 
         public DataTable GetAll() => repo.GetAll();
         public DataTable Search(string kw) => repo.Search(kw);
+
         public DataTable GetCategories() => repo.GetCategories();
+        public DataTable GetColors() => repo.GetColors();     // ✅ thêm dòng này
+
         public DataTable GetForSale() => repo.GetProductsForSale();
 
         public bool Add(Product p, out string err)
@@ -23,6 +26,7 @@ namespace FashionShop.BLL
             if (p.Price <= 0) { err = "Giá > 0"; return false; }
             if (p.Stock < 0) { err = "Tồn kho >= 0"; return false; }
 
+            // nếu chưa chọn màu thì coi như null/0 vẫn cho insert (repo sẽ set DBNull)
             return repo.Insert(p) > 0;
         }
 

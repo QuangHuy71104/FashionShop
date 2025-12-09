@@ -91,6 +91,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AuthRepository.cs" />
+    <Compile Include="CategoryRepository.cs" />
+    <Compile Include="ColorRepository.cs" />
     <Compile Include="CustomerRepository.cs" />
     <Compile Include="DbContext.cs" />
     <Compile Include="OrderRepository.cs" />

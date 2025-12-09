@@ -167,35 +167,35 @@ namespace FashionShop.DAL
                 conn.Open();
 
                 string sql = @"
-            SELECT 
-                o.order_id,
-                o.order_code,
-                o.order_date,
-                IFNULL(c.customer_name, 'Walk-in') AS customer_name,
-                e.employee_name,
-                o.total_amount,
+SELECT 
+    o.order_id        AS order_id,
+    o.order_code      AS order_code,
+    o.order_date      AS order_date,
+    IFNULL(c.customer_name, 'Walk-in') AS customer_name,
+    e.employee_name   AS employee_name,
+    o.total_amount    AS total_amount,
 
-                -- ✅ thêm các cột giống Cart
-                p.product_id,
-                p.product_name,
-                p.size,
-                p.color,
-                p.stock,
+    p.product_id      AS product_id,
+    p.product_name    AS product_name,
+    p.size            AS size,
+    co.color_name     AS color,      -- ✅ lấy tên màu từ bảng colors
+    p.stock           AS stock,
 
-                od.quantity,
-                od.unit_price,
-                (od.quantity * od.unit_price) AS line_total
-            FROM orders o
-            JOIN order_details od ON o.order_id = od.order_id
-            JOIN products p ON p.product_id = od.product_id
-            LEFT JOIN customers c ON c.customer_id = o.customer_id
-            LEFT JOIN employees e ON e.employee_id = o.employee_id
-            WHERE 1=1
-                AND (@kwCus IS NULL OR c.customer_name LIKE @kwCus)
-                AND (@kwPro IS NULL OR p.product_name LIKE @kwPro)
-                AND (@fromDate IS NULL OR DATE(o.order_date) >= DATE(@fromDate))
-                AND (@toDate IS NULL OR DATE(o.order_date) <= DATE(@toDate))
-            ORDER BY o.order_date DESC, o.order_id DESC;";
+    od.quantity       AS quantity,
+    od.unit_price     AS unit_price,
+    (od.quantity * od.unit_price) AS line_total
+FROM orders o
+JOIN order_details od ON o.order_id = od.order_id
+JOIN products p ON p.product_id = od.product_id
+LEFT JOIN colors co ON p.color_id = co.color_id   -- ✅ join colors
+LEFT JOIN customers c ON c.customer_id = o.customer_id
+LEFT JOIN employees e ON e.employee_id = o.employee_id
+WHERE 1=1
+    AND (@kwCus IS NULL OR c.customer_name LIKE @kwCus)
+    AND (@kwPro IS NULL OR p.product_name LIKE @kwPro)
+    AND (@fromDate IS NULL OR DATE(o.order_date) >= DATE(@fromDate))
+    AND (@toDate IS NULL OR DATE(o.order_date) <= DATE(@toDate))
+ORDER BY o.order_date DESC, o.order_id DESC;";
 
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
@@ -214,6 +214,10 @@ namespace FashionShop.DAL
                     using (var da = new MySqlDataAdapter(cmd))
                     {
                         da.Fill(dt);
+                        if (!dt.Columns.Contains("order_code"))
+                        {
+                            throw new Exception("GetHistory() không trả về cột order_code. Kiểm tra lại alias SQL.");
+                        }
                     }
                 }
             }
