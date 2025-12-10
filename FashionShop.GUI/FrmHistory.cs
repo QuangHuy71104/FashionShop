@@ -107,6 +107,7 @@ namespace FashionShop.GUI
             Shown += (s, e) => MakeDateFramesSameHeightAsSearchButton();
 
 
+
             // ===== ép width nút Clear nhỏ lại nếu parent là TableLayoutPanel =====
             if (btnClear.Parent is TableLayoutPanel tlp)
             {
@@ -133,6 +134,12 @@ namespace FashionShop.GUI
 
             dgvHistory.Dock = DockStyle.Fill;
             StyleGrid(dgvHistory);
+
+            // ===== highlight header when changing selection =====
+            dgvHistory.SelectionChanged += (s, e) => HighlightCurrentColumnHeader();
+            dgvHistory.CellEnter += (s, e) => HighlightCurrentColumnHeader();
+            dgvHistory.ColumnHeaderMouseClick += (s, e) => HighlightCurrentColumnHeader();
+
 
             // ===== placeholder search =====
             txtSearch.Text = hint;
@@ -223,6 +230,8 @@ namespace FashionShop.GUI
 
             ApplySearch();
             EnableMergedOrderCells();
+            HighlightCurrentColumnHeader();
+
         }
 
         private void SetHistoryColumnOrder()
@@ -469,5 +478,39 @@ namespace FashionShop.GUI
         {
 
         }
+
+        private void FrmHistory_Load_2(object sender, EventArgs e)
+        {
+
+        }
+
+        // ===== Header highlight colors =====
+        private readonly Color HeaderBackNormal = Color.FromArgb(245, 245, 245);
+        private readonly Color HeaderForeNormal = Color.Black;
+
+        private readonly Color HeaderBackActive = Color.FromArgb(33, 150, 243); // xanh primary
+        private readonly Color HeaderForeActive = Color.White;
+
+        private void HighlightCurrentColumnHeader()
+        {
+            if (dgvHistory == null || dgvHistory.Columns.Count == 0) return;
+
+            // reset all columns header to normal
+            foreach (DataGridViewColumn col in dgvHistory.Columns)
+            {
+                col.HeaderCell.Style.BackColor = HeaderBackNormal;
+                col.HeaderCell.Style.ForeColor = HeaderForeNormal;
+                col.HeaderCell.Style.Font = new Font("Segoe UI Semibold", 10f);
+            }
+
+            // active column = column of current cell
+            var curCell = dgvHistory.CurrentCell;
+            if (curCell == null) return;
+
+            var activeCol = dgvHistory.Columns[curCell.ColumnIndex];
+            activeCol.HeaderCell.Style.BackColor = HeaderBackActive;
+            activeCol.HeaderCell.Style.ForeColor = HeaderForeActive;
+        }
+
     }
 }

@@ -86,6 +86,24 @@ namespace FashionShop.GUI
             return bmp;
         }
 
+        private void InitializeComponent()
+        {
+            this.SuspendLayout();
+            // 
+            // FrmMain
+            // 
+            this.ClientSize = new System.Drawing.Size(274, 229);
+            this.Name = "FrmMain";
+            this.Load += new System.EventHandler(this.FrmMain_Load);
+            this.ResumeLayout(false);
+
+        }
+
+        private void FrmMain_Load(object sender, EventArgs e)
+        {
+
+        }
+
         private void BuildLayout()
         {
             // ===== OUTER SPLIT =====
@@ -215,7 +233,7 @@ namespace FashionShop.GUI
             menuWrap.Controls.Add(btnCustomers);
             menuWrap.Controls.Add(btnProducts);
 
-            // ✅ chỉ Admin thấy nút này
+            // chỉ Admin thấy nút này
             bool isAdmin = current.Role != null &&
                            current.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase);
             if (isAdmin)
@@ -261,7 +279,7 @@ namespace FashionShop.GUI
                 new FrmHistory().ShowDialog();
             };
 
-            // ✅ FIX CS7036: truyền current vào FrmAccounts
+            // FIX CS7036: truyền current vào FrmAccounts
             btnAccounts.Click += (s, e) =>
             {
                 new FrmAccounts(current).ShowDialog();

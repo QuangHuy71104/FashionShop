@@ -258,6 +258,10 @@ namespace FashionShop.GUI
             };
             dgv.CellClick += Dgv_CellClick;
             StyleGrid(dgv);
+            dgv.SelectionChanged += (s, e) => HighlightCurrentColumnHeader(dgv);
+            dgv.CellEnter += (s, e) => HighlightCurrentColumnHeader(dgv);
+            dgv.ColumnHeaderMouseClick += (s, e) => HighlightCurrentColumnHeader(dgv);
+
 
             split.Panel2.Controls.Add(dgv);
             split.Panel2.Controls.Add(pnlSearch);
@@ -333,6 +337,7 @@ namespace FashionShop.GUI
 
             SetupAutoComplete();
             ApplySearch();
+            HighlightCurrentColumnHeader(dgv);
         }
 
         private void InitializeComponent()
@@ -527,5 +532,33 @@ namespace FashionShop.GUI
             txtAddress.Text = r.Cells["address"].Value?.ToString();
             txtPoints.Text = r.Cells["points"].Value?.ToString();
         }
+        // ===== Header highlight colors =====
+        private readonly Color HeaderBackNormal = Color.FromArgb(245, 245, 245);
+        private readonly Color HeaderForeNormal = Color.Black;
+
+        private readonly Color HeaderBackActive = Color.FromArgb(33, 150, 243);
+        private readonly Color HeaderForeActive = Color.White;
+
+        // highlight header theo cột đang đứng
+        private void HighlightCurrentColumnHeader(DataGridView grid)
+        {
+            if (grid == null || grid.Columns.Count == 0) return;
+
+            // reset all headers
+            foreach (DataGridViewColumn col in grid.Columns)
+            {
+                col.HeaderCell.Style.BackColor = HeaderBackNormal;
+                col.HeaderCell.Style.ForeColor = HeaderForeNormal;
+                col.HeaderCell.Style.Font = new Font("Segoe UI Semibold", 10f);
+            }
+
+            var cur = grid.CurrentCell;
+            if (cur == null) return;
+
+            var activeCol = grid.Columns[cur.ColumnIndex];
+            activeCol.HeaderCell.Style.BackColor = HeaderBackActive;
+            activeCol.HeaderCell.Style.ForeColor = HeaderForeActive;
+        }
+
     }
 }
