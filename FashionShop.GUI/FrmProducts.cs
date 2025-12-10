@@ -162,7 +162,7 @@ namespace FashionShop.GUI
                     if (!IsAdmin()) return;
                     using (var f = new FrmCategories(current))
                         f.ShowDialog();
-                    LoadCategories(); // ✅ reload lại category sau CRUD
+                    LoadCategories(); //reload lại category sau CRUD
                 },
                 comboWidth: 200,
                 gap: 6
@@ -501,6 +501,10 @@ namespace FashionShop.GUI
             dgv.DefaultCellStyle.WrapMode = DataGridViewTriState.False;
             dgv.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None;
             dgv.RowTemplate.Height = 28;   // gọn
+            dgv.SelectionChanged += (s, e) => HighlightCurrentColumnHeader();
+            dgv.CellEnter += (s, e) => HighlightCurrentColumnHeader();
+            dgv.ColumnHeaderMouseClick += (s, e) => HighlightCurrentColumnHeader();
+
 
 
             StyleGrid(dgv);
@@ -553,15 +557,15 @@ namespace FashionShop.GUI
             }
 
             // set width gọn gàng hơn
-            SetColWidth("product_id", 100);
-            SetColWidth("product_code", 100);
+            SetColWidth("product_id", 120);
+            SetColWidth("product_code", 150);
             SetColWidth("product_name", 250);
-            SetColWidth("category_name", 130);
-            SetColWidth("size", 50);
+            SetColWidth("category_name", 150);
+            SetColWidth("size", 70);
             SetColWidth("color", 70);
             SetColWidth("gender", 80);
-            SetColWidth("price", 90);
-            SetColWidth("stock", 60);
+            SetColWidth("price", 120);
+            SetColWidth("stock", 80);
 
             // chỉ product_name được xuống dòng
             if (dgv.Columns.Contains("product_name"))
@@ -593,6 +597,8 @@ namespace FashionShop.GUI
 
             SetupAutoComplete();
             ApplySearch();
+            HighlightCurrentColumnHeader();
+
         }
 
         private void ResolveProductColumns()
@@ -983,6 +989,36 @@ namespace FashionShop.GUI
             cboCategory.ValueMember = "category_id";
             cboCategory.SelectedIndex = dt.Rows.Count > 0 ? 0 : -1;
         }
+
+        // Màu header mặc định (đang dùng trong StyleGrid)
+        private readonly Color HeaderBackNormal = Color.FromArgb(245, 245, 245);
+        private readonly Color HeaderForeNormal = Color.Black;
+
+        // Màu header khi active
+        private readonly Color HeaderBackActive = Color.FromArgb(33, 150, 243); // xanh primary
+        private readonly Color HeaderForeActive = Color.White;
+
+        private void HighlightCurrentColumnHeader()
+        {
+            if (dgv == null || dgv.Columns.Count == 0) return;
+
+            // reset tất cả header về normal
+            foreach (DataGridViewColumn col in dgv.Columns)
+            {
+                col.HeaderCell.Style.BackColor = HeaderBackNormal;
+                col.HeaderCell.Style.ForeColor = HeaderForeNormal;
+                col.HeaderCell.Style.Font = new Font("Segoe UI Semibold", 10f);
+            }
+
+            // lấy cột đang được focus
+            var curCell = dgv.CurrentCell;
+            if (curCell == null) return;
+
+            var activeCol = dgv.Columns[curCell.ColumnIndex];
+            activeCol.HeaderCell.Style.BackColor = HeaderBackActive;
+            activeCol.HeaderCell.Style.ForeColor = HeaderForeActive;
+        }
+
 
     }
 }
