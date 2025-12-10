@@ -7,15 +7,33 @@ namespace FashionShop.BLL
     {
         private AuthRepository repo = new AuthRepository();
 
-        public Account Login(string user, string pass, out string err)
+        public Account Login(string username, string password, out string err)
         {
             err = "";
-            if (string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(pass))
-            { err = "Nhập đủ username & password"; return null; }
 
-            var acc = repo.Login(user, HashHelper.Sha256(pass));
-            if (acc == null) err = "Sai tài khoản hoặc mật khẩu";
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                err = "Please enter your username.";
+                return null;
+            }
+
+            if (string.IsNullOrWhiteSpace(password))
+            {
+                err = "Please enter your password.";
+                return null;
+            }
+
+            string passHash = HashHelper.Sha256(password);
+            var acc = repo.Login(username, passHash);
+
+            if (acc == null)
+            {
+                err = "Login failed. Please contact the Admin.";
+                return null;
+            }
+
             return acc;
         }
+
     }
 }

@@ -45,7 +45,9 @@ namespace FashionShop.GUI
             {
                 Dock = DockStyle.Fill,
                 RowCount = 4,
-                ColumnCount = 1
+                ColumnCount = 1,
+                Padding = new Padding(14, 12, 14, 14),
+                BackColor = Color.White
             };
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 90));  // input
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));  // buttons
@@ -58,7 +60,7 @@ namespace FashionShop.GUI
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                Padding = new Padding(10),
+                Padding = new Padding(0, 6, 0, 0)
             };
             pnlInput.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
             pnlInput.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -93,7 +95,8 @@ namespace FashionShop.GUI
             {
                 Dock = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
-                Padding = new Padding(10, 0, 10, 0)
+                Padding = new Padding(0),          
+                Margin = new Padding(0, 0, 0, 4)
             };
 
             btnAdd = MakeButton("Add", Color.FromArgb(33, 150, 243));
@@ -118,7 +121,8 @@ namespace FashionShop.GUI
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                Padding = new Padding(10, 0, 10, 0)
+                Padding = new Padding(0),
+                Margin = new Padding(0, 0, 0, 6)
             };
             pnlSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             pnlSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 40));
@@ -179,6 +183,7 @@ namespace FashionShop.GUI
             dgv = new DataGridView
             {
                 Dock = DockStyle.Fill,
+                Margin = new Padding(0, 4, 0, 0),
                 ReadOnly = true,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,

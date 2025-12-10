@@ -193,6 +193,10 @@ namespace FashionShop.GUI
             };
             StyleGrid(dgvProducts);
             dgvProducts.CellClick += DgvProducts_CellClick;
+            dgvProducts.SelectionChanged += (s, e) => HighlightCurrentColumnHeader(dgvProducts);
+            dgvProducts.CellEnter += (s, e) => HighlightCurrentColumnHeader(dgvProducts);
+            dgvProducts.ColumnHeaderMouseClick += (s, e) => HighlightCurrentColumnHeader(dgvProducts);
+
 
 
             // Bottom qty + add
@@ -266,6 +270,9 @@ namespace FashionShop.GUI
             };
             StyleGrid(dgvCart);
             dgvCart.CellClick += DgvCart_CellClick;
+            dgvCart.SelectionChanged += (s, e) => HighlightCurrentColumnHeader(dgvCart);
+            dgvCart.CellEnter += (s, e) => HighlightCurrentColumnHeader(dgvCart);
+            dgvCart.ColumnHeaderMouseClick += (s, e) => HighlightCurrentColumnHeader(dgvCart);
 
 
             // ================= Payment Summary =================
@@ -519,6 +526,12 @@ namespace FashionShop.GUI
                     cboCustomers.SelectedIndex = -1;
 
                 RefreshCart();
+
+                if (dgvCart.Rows.Count > 0 && dgvCart.Columns.Count > 0)
+                    dgvCart.CurrentCell = dgvCart.Rows[0].Cells[0];
+
+                HighlightCurrentColumnHeader(dgvCart);
+
             };
 
 
@@ -546,6 +559,12 @@ namespace FashionShop.GUI
                 };
 
                 RefreshCart();
+
+                // set current cell đầu tiên nếu có
+                if (dgvProducts.Rows.Count > 0 && dgvProducts.Columns.Count > 0)
+                    dgvProducts.CurrentCell = dgvProducts.Rows[0].Cells[0];
+
+                HighlightCurrentColumnHeader(dgvProducts);
             };
         }
 
@@ -989,6 +1008,35 @@ namespace FashionShop.GUI
             btnAdd.Text = "Update Qty";
             btnAdd.BackColor = Color.FromArgb(255, 152, 0);
         }
+
+        // ===== Header highlight colors (giống các form khác) =====
+        private readonly Color HeaderBackNormal = Color.FromArgb(245, 245, 245);
+        private readonly Color HeaderForeNormal = Color.Black;
+
+        private readonly Color HeaderBackActive = Color.FromArgb(33, 150, 243);
+        private readonly Color HeaderForeActive = Color.White;
+
+        // highlight header theo current cell của grid truyền vào
+        private void HighlightCurrentColumnHeader(DataGridView grid)
+        {
+            if (grid == null || grid.Columns.Count == 0) return;
+
+            // reset all headers
+            foreach (DataGridViewColumn col in grid.Columns)
+            {
+                col.HeaderCell.Style.BackColor = HeaderBackNormal;
+                col.HeaderCell.Style.ForeColor = HeaderForeNormal;
+                col.HeaderCell.Style.Font = new Font("Segoe UI Semibold", 10f);
+            }
+
+            var cur = grid.CurrentCell;
+            if (cur == null) return;
+
+            var activeCol = grid.Columns[cur.ColumnIndex];
+            activeCol.HeaderCell.Style.BackColor = HeaderBackActive;
+            activeCol.HeaderCell.Style.ForeColor = HeaderForeActive;
+        }
+
 
     }
 }

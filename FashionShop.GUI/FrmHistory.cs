@@ -25,10 +25,87 @@ namespace FashionShop.GUI
             "total_amount"
         };
 
+        private Panel WrapDatePickerToMatchButton(DateTimePicker dtp, int targetHeight)
+        {
+            var pnl = new Panel
+            {
+                BackColor = Color.White,
+                Height = targetHeight,
+                MinimumSize = new Size(0, targetHeight),
+                MaximumSize = new Size(0, targetHeight),
+                Dock = DockStyle.Fill,
+                Padding = new Padding(2),
+                Margin = new Padding(0, 6, 6, 6)
+            };
+
+            pnl.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(Color.FromArgb(200, 200, 200)))
+                {
+                    var r = pnl.ClientRectangle;
+                    r.Width -= 1; r.Height -= 1;
+                    e.Graphics.DrawRectangle(pen, r);
+                }
+            };
+
+            dtp.Format = DateTimePickerFormat.Custom;
+            dtp.CustomFormat = "dd/MM/yyyy";
+
+            // căn giữa dọc
+            dtp.Location = new Point(2, (targetHeight - dtp.Height) / 2);
+            dtp.Width = pnl.Width - 4;
+            dtp.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+
+            pnl.Resize += (_, __) =>
+            {
+                dtp.Location = new Point(2, (pnl.Height - dtp.Height) / 2);
+                dtp.Width = pnl.Width - 4;
+            };
+
+            pnl.Controls.Add(dtp);
+            return pnl;
+        }
+
+
+        private void MakeDateFramesSameHeightAsSearchButton()
+        {
+            int h = btnSearch.Height;  // lấy đúng chiều cao nút Search sau layout
+
+            // ===== FROM =====
+            var tlpFrom = dtFrom.Parent as TableLayoutPanel;
+            if (tlpFrom != null && !(dtFrom.Parent is Panel))
+            {
+                int col = tlpFrom.GetColumn(dtFrom);
+                int row = tlpFrom.GetRow(dtFrom);
+
+                tlpFrom.Controls.Remove(dtFrom);
+                var pnlFrom = WrapDatePickerToMatchButton(dtFrom, h);
+
+                tlpFrom.Controls.Add(pnlFrom, col, row);
+            }
+
+            // ===== TO =====
+            var tlpTo = dtTo.Parent as TableLayoutPanel;
+            if (tlpTo != null && !(dtTo.Parent is Panel))
+            {
+                int col = tlpTo.GetColumn(dtTo);
+                int row = tlpTo.GetRow(dtTo);
+
+                tlpTo.Controls.Remove(dtTo);
+                var pnlTo = WrapDatePickerToMatchButton(dtTo, h);
+
+                tlpTo.Controls.Add(pnlTo, col, row);
+            }
+        }
+
+
 
         public FrmHistory()
         {
             InitializeComponent();
+
+            Shown += (s, e) => MakeDateFramesSameHeightAsSearchButton();
+
 
 
             // ===== ép width nút Clear nhỏ lại nếu parent là TableLayoutPanel =====
@@ -47,12 +124,22 @@ namespace FashionShop.GUI
             }
 
             // ===== form base =====
+            StartPosition = FormStartPosition.CenterScreen;
+            var wa = Screen.PrimaryScreen.WorkingArea;
             MinimumSize = new Size(950, 550);
+
+            Size = new Size(1400, 700);
             Padding = new Padding(10, 0, 10, 10);
             AutoScaleMode = AutoScaleMode.Font;
 
             dgvHistory.Dock = DockStyle.Fill;
             StyleGrid(dgvHistory);
+
+            // ===== highlight header when changing selection =====
+            dgvHistory.SelectionChanged += (s, e) => HighlightCurrentColumnHeader();
+            dgvHistory.CellEnter += (s, e) => HighlightCurrentColumnHeader();
+            dgvHistory.ColumnHeaderMouseClick += (s, e) => HighlightCurrentColumnHeader();
+
 
             // ===== placeholder search =====
             txtSearch.Text = hint;
@@ -120,6 +207,10 @@ namespace FashionShop.GUI
         {
             dtFrom.Value = DateTime.Today.AddMonths(-1);
             dtTo.Value = DateTime.Today;
+            BeginInvoke(new Action(() =>
+            {
+                MakeDateFramesSameHeightAsSearchButton();
+            }));
             ReloadHistory();
         }
 
@@ -139,6 +230,8 @@ namespace FashionShop.GUI
 
             ApplySearch();
             EnableMergedOrderCells();
+            HighlightCurrentColumnHeader();
+
         }
 
         private void SetHistoryColumnOrder()
@@ -178,33 +271,51 @@ namespace FashionShop.GUI
 
         private void SetHistoryColumnWidth()
         {
-            dgvHistory.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+            dgvHistory.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
 
             void Fix(string name, int w)
             {
                 if (!dgvHistory.Columns.Contains(name)) return;
-                dgvHistory.Columns[name].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                dgvHistory.Columns[name].Width = w;
+                var c = dgvHistory.Columns[name];
+                c.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                c.Width = w;
             }
 
-            Fix("order_code", 190);
-            Fix("order_date", 180);
-            Fix("customer_name", 140);
-            Fix("employee_name", 130);
-            Fix("product_name", 180);
+            void Fill(string name, float weight)
+            {
+                if (!dgvHistory.Columns.Contains(name)) return;
+                var c = dgvHistory.Columns[name];
+                c.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                c.FillWeight = weight;
+                c.MinimumWidth = 60;   // chống bị bóp quá nhỏ
+            }
 
+            // ==== 1) FIX cột hoá đơn (ít thay đổi, nên cố định) ====
+            Fix("order_code", 170);
+            Fix("order_date", 150);
+            Fix("customer_name", 120);
+            Fix("employee_name", 120);
+            Fix("product_id", 100);
+            Fix("total_amount", 110);
+
+            // ==== 2) Fill các cột sản phẩm theo tỉ lệ ====
+            Fill("product_id", 100);
+            Fill("product_name", 220);
+            Fill("size", 60);
+            Fill("color", 80);
+            Fill("stock", 60);
+            Fill("quantity", 60);
+            Fill("unit_price", 90);
+            Fill("line_total", 90);
+
+            // Nếu có cột thừa thì vẫn Fill nhẹ
             foreach (DataGridViewColumn col in dgvHistory.Columns)
             {
-                if (new[] { "order_code", "order_date", "customer_name", "employee_name", "product_name" }
-                    .Contains(col.Name))
-                    continue;
-
-                col.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+                if (col.AutoSizeMode == DataGridViewAutoSizeColumnMode.None) continue;
+                if (col.FillWeight <= 0) col.FillWeight = 80;
             }
-
-            dgvHistory.Columns[dgvHistory.Columns.Count - 1].AutoSizeMode =
-                DataGridViewAutoSizeColumnMode.Fill;
         }
+
 
         private void ApplySearch()
         {
@@ -367,5 +478,39 @@ namespace FashionShop.GUI
         {
 
         }
+
+        private void FrmHistory_Load_2(object sender, EventArgs e)
+        {
+
+        }
+
+        // ===== Header highlight colors =====
+        private readonly Color HeaderBackNormal = Color.FromArgb(245, 245, 245);
+        private readonly Color HeaderForeNormal = Color.Black;
+
+        private readonly Color HeaderBackActive = Color.FromArgb(33, 150, 243); // xanh primary
+        private readonly Color HeaderForeActive = Color.White;
+
+        private void HighlightCurrentColumnHeader()
+        {
+            if (dgvHistory == null || dgvHistory.Columns.Count == 0) return;
+
+            // reset all columns header to normal
+            foreach (DataGridViewColumn col in dgvHistory.Columns)
+            {
+                col.HeaderCell.Style.BackColor = HeaderBackNormal;
+                col.HeaderCell.Style.ForeColor = HeaderForeNormal;
+                col.HeaderCell.Style.Font = new Font("Segoe UI Semibold", 10f);
+            }
+
+            // active column = column of current cell
+            var curCell = dgvHistory.CurrentCell;
+            if (curCell == null) return;
+
+            var activeCol = dgvHistory.Columns[curCell.ColumnIndex];
+            activeCol.HeaderCell.Style.BackColor = HeaderBackActive;
+            activeCol.HeaderCell.Style.ForeColor = HeaderForeActive;
+        }
+
     }
 }
