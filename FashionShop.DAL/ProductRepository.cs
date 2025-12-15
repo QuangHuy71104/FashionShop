@@ -9,6 +9,7 @@ namespace FashionShop.DAL
     {
         // =========================
         // GET ALL (join categories + colors)
+        // (KHÔNG load ảnh blob để grid nhẹ)
         // =========================
         public DataTable GetAll()
         {
@@ -21,7 +22,7 @@ SELECT  p.product_id, p.product_code, p.product_name,
         p.size,
         co.color_name,
         p.gender,
-        p.price, p.stock, p.image_path
+        p.price, p.stock
 FROM products p
 JOIN categories c ON p.category_id = c.category_id
 LEFT JOIN colors co ON p.color_id = co.color_id
@@ -36,6 +37,7 @@ ORDER BY p.product_id ASC;";
 
         // =========================
         // SEARCH (lọc theo code/name/category/color)
+        // (KHÔNG load ảnh blob để grid nhẹ)
         // =========================
         public DataTable Search(string keyword)
         {
@@ -48,7 +50,7 @@ SELECT  p.product_id, p.product_code, p.product_name,
         p.size,
         co.color_name,
         p.gender,
-        p.price, p.stock, p.image_path
+        p.price, p.stock
 FROM products p
 JOIN categories c ON p.category_id = c.category_id
 LEFT JOIN colors co ON p.color_id = co.color_id
@@ -70,6 +72,7 @@ ORDER BY p.product_id ASC;";
 
         // =========================
         // GET FOR SALE (stock > 0)
+        // (KHÔNG load ảnh blob để grid nhẹ)
         // =========================
         public DataTable GetProductsForSale()
         {
@@ -82,7 +85,7 @@ SELECT  p.product_id, p.product_code, p.product_name,
         p.size,
         co.color_name,
         p.gender,
-        p.price, p.stock, p.image_path
+        p.price, p.stock
 FROM products p
 JOIN categories c ON p.category_id = c.category_id
 LEFT JOIN colors co ON p.color_id = co.color_id
@@ -114,7 +117,7 @@ ORDER BY p.product_id ASC;";
         }
 
         // =========================
-        // INSERT (color_id)
+        // INSERT (color_id + image_blob)
         // =========================
         public int Insert(Product p)
         {
@@ -123,28 +126,32 @@ ORDER BY p.product_id ASC;";
                 conn.Open();
                 string sql = @"
 INSERT INTO products
-(product_code, product_name, category_id, supplier_id, size, color_id, gender, price, stock, image_path, status)
+(product_code, product_name, category_id, supplier_id, size, color_id, gender, price, stock, image_blob, image_mime, status)
 VALUES
-(@code, @name, @catId, @supId, @size, @colorId, @gender, @price, @stock, @img, 1);";
+(@code, @name, @catId, @supId, @size, @colorId, @gender, @price, @stock, @imgBlob, @imgMime, 1);";
 
                 var cmd = new MySqlCommand(sql, conn);
                 cmd.Parameters.AddWithValue("@code", p.Code);
                 cmd.Parameters.AddWithValue("@name", p.Name);
                 cmd.Parameters.AddWithValue("@catId", p.CategoryId);
+
                 cmd.Parameters.AddWithValue("@supId", p.SupplierId == 0 ? (object)DBNull.Value : p.SupplierId);
                 cmd.Parameters.AddWithValue("@size", string.IsNullOrWhiteSpace(p.Size) ? (object)DBNull.Value : p.Size);
                 cmd.Parameters.AddWithValue("@colorId", p.ColorId <= 0 ? (object)DBNull.Value : p.ColorId);
+
                 cmd.Parameters.AddWithValue("@gender", p.Gender);
                 cmd.Parameters.AddWithValue("@price", p.Price);
                 cmd.Parameters.AddWithValue("@stock", p.Stock);
-                cmd.Parameters.AddWithValue("@img", string.IsNullOrWhiteSpace(p.ImagePath) ? (object)DBNull.Value : p.ImagePath);
+
+                cmd.Parameters.AddWithValue("@imgBlob", (object)p.ImageBlob ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@imgMime", string.IsNullOrWhiteSpace(p.ImageMime) ? (object)DBNull.Value : p.ImageMime);
 
                 return cmd.ExecuteNonQuery();
             }
         }
 
         // =========================
-        // UPDATE (color_id)
+        // UPDATE (color_id + image_blob)
         // =========================
         public int Update(Product p)
         {
@@ -161,22 +168,59 @@ SET product_name = @name,
     gender = @gender,
     price = @price,
     stock = @stock,
-    image_path = @img
+    image_blob = @imgBlob,
+    image_mime = @imgMime
 WHERE product_code = @code;";
 
                 var cmd = new MySqlCommand(sql, conn);
                 cmd.Parameters.AddWithValue("@code", p.Code);
                 cmd.Parameters.AddWithValue("@name", p.Name);
                 cmd.Parameters.AddWithValue("@catId", p.CategoryId);
+
                 cmd.Parameters.AddWithValue("@supId", p.SupplierId == 0 ? (object)DBNull.Value : p.SupplierId);
                 cmd.Parameters.AddWithValue("@size", string.IsNullOrWhiteSpace(p.Size) ? (object)DBNull.Value : p.Size);
                 cmd.Parameters.AddWithValue("@colorId", p.ColorId <= 0 ? (object)DBNull.Value : p.ColorId);
+
                 cmd.Parameters.AddWithValue("@gender", p.Gender);
                 cmd.Parameters.AddWithValue("@price", p.Price);
                 cmd.Parameters.AddWithValue("@stock", p.Stock);
-                cmd.Parameters.AddWithValue("@img", string.IsNullOrWhiteSpace(p.ImagePath) ? (object)DBNull.Value : p.ImagePath);
+
+                cmd.Parameters.AddWithValue("@imgBlob", (object)p.ImageBlob ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@imgMime", string.IsNullOrWhiteSpace(p.ImageMime) ? (object)DBNull.Value : p.ImageMime);
 
                 return cmd.ExecuteNonQuery();
+            }
+        }
+
+        // =========================
+        // GET IMAGE BY CODE (load blob khi click 1 dòng)
+        // =========================
+        public Tuple<byte[], string> GetImageByCode(string code)
+        {
+            using (var conn = DbContext.GetConnection())
+            {
+                conn.Open();
+                string sql = @"
+SELECT image_blob, image_mime
+FROM products
+WHERE product_code = @code
+LIMIT 1;";
+
+                var cmd = new MySqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@code", code);
+
+                using (var rd = cmd.ExecuteReader())
+                {
+                    if (!rd.Read())
+                        return Tuple.Create<byte[], string>(null, null);
+
+                    if (rd.IsDBNull(0))
+                        return Tuple.Create<byte[], string>(null, rd.IsDBNull(1) ? null : rd.GetString(1));
+
+                    var blob = (byte[])rd["image_blob"];
+                    var mime = rd.IsDBNull(1) ? null : rd.GetString(1);
+                    return Tuple.Create(blob, mime);
+                }
             }
         }
 

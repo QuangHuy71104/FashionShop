@@ -6,6 +6,7 @@ using System.Windows.Forms;
 using FashionShop.BLL;
 using FashionShop.DTO;
 using System.Globalization;
+using System.IO; // ✅ NEW for blob
 
 namespace FashionShop.GUI
 {
@@ -59,7 +60,10 @@ namespace FashionShop.GUI
         private PictureBox picPreview;
         private Label lblDropHint;
         private Button btnChooseImage;
-        private string selectedImagePath;
+
+        // ✅ CHANGED: store image as BLOB instead of path
+        private byte[] selectedImageBlob;
+        private string selectedImageMime;
 
         private readonly ColorService colorService = new ColorService();
 
@@ -185,7 +189,7 @@ namespace FashionShop.GUI
             {
                 Maximum = 1000000000,
                 DecimalPlaces = 0,
-                ThousandsSeparator = true,
+                ThousandsSeparator = false,
                 Dock = DockStyle.Fill
             };
 
@@ -213,17 +217,17 @@ namespace FashionShop.GUI
             priceWrap.Controls.Add(lblZeros);
 
             // Price nhập theo đơn vị nghìn: Enter bỏ 000, Leave tự thêm 000
-            nudPrice.Enter += (s, e) =>
-            {
-                var v = nudPrice.Value;
-                if (v >= 1000 && v % 1000 == 0)
-                    nudPrice.Value = v / 1000; // show phần nghìn để dễ sửa
-            };
+            //nudPrice.Enter += (s, e) =>
+            //{
+            //    var v = nudPrice.Value;
+            //    if (v >= 1000 && v % 1000 == 0)
+            //        nudPrice.Value = v / 1000; // show phần nghìn để dễ sửa
+            //};
 
-            nudPrice.Leave += (s, e) =>
-            {
-                nudPrice.Value = nudPrice.Value * 1000; // tự thêm 000 khi rời ô
-            };
+            //nudPrice.Leave += (s, e) =>
+            //{
+            //    nudPrice.Value = nudPrice.Value * 1000; // tự thêm 000 khi rời ô
+            //};
 
             nudStock = new NumericUpDown
             {
@@ -231,6 +235,8 @@ namespace FashionShop.GUI
                 DecimalPlaces = 0,
                 ThousandsSeparator = true
             };
+
+
 
             // add rows
             AddRow("Code", txtCode);
@@ -370,7 +376,7 @@ namespace FashionShop.GUI
             {
                 var files = (string[])e.Data.GetData(DataFormats.FileDrop);
                 if (files != null && files.Length > 0)
-                    LoadImage(files[0]);
+                    LoadImage(files[0]); // ✅ still load from file to preview & capture blob
             };
 
             pnlImageDrop.Cursor = Cursors.Hand;
@@ -505,8 +511,6 @@ namespace FashionShop.GUI
             dgv.CellEnter += (s, e) => HighlightCurrentColumnHeader();
             dgv.ColumnHeaderMouseClick += (s, e) => HighlightCurrentColumnHeader();
 
-
-
             StyleGrid(dgv);
 
             split.Panel2.Controls.Add(dgv);
@@ -551,20 +555,23 @@ namespace FashionShop.GUI
             productsView = productsTable.DefaultView;
             dgv.DataSource = productsView;
             // tắt autosize để width có hiệu lực
+            dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+            dgv.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None;
+
             foreach (DataGridViewColumn col in dgv.Columns)
             {
-                col.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                col.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
             }
 
             // set width gọn gàng hơn
-            SetColWidth("product_id", 120);
-            SetColWidth("product_code", 150);
-            SetColWidth("product_name", 250);
+            SetColWidth("product_id", 100);
+            SetColWidth("product_code", 120);
+            SetColWidth("product_name", 200);
             SetColWidth("category_name", 150);
             SetColWidth("size", 70);
             SetColWidth("color", 70);
             SetColWidth("gender", 80);
-            SetColWidth("price", 120);
+            SetColWidth("price", 100);
             SetColWidth("stock", 80);
 
             // chỉ product_name được xuống dòng
@@ -654,7 +661,8 @@ namespace FashionShop.GUI
 
             var src = new AutoCompleteStringCollection();
 
-            if (!string.IsNullOrEmpty(colCode))
+            // add code
+            if (!string.IsNullOrEmpty(colCode) && productsTable.Columns.Contains(colCode))
             {
                 var codes = productsTable.AsEnumerable()
                     .Select(r => r[colCode]?.ToString())
@@ -664,7 +672,8 @@ namespace FashionShop.GUI
                 src.AddRange(codes);
             }
 
-            if (!string.IsNullOrEmpty(colName))
+            // add name
+            if (!string.IsNullOrEmpty(colName) && productsTable.Columns.Contains(colName))
             {
                 var names = productsTable.AsEnumerable()
                     .Select(r => r[colName]?.ToString())
@@ -674,9 +683,29 @@ namespace FashionShop.GUI
                 src.AddRange(names);
             }
 
+            // add other columns (đúng tên cột trong DataTable)
+            AddCol("category_name");
+            AddCol("size");
+            AddCol("color_name"); // chú ý: DB đang trả color_name
+            AddCol("gender");
+
             txtSearch.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
             txtSearch.AutoCompleteSource = AutoCompleteSource.CustomSource;
             txtSearch.AutoCompleteCustomSource = src;
+
+            // ===== local helper =====
+            void AddCol(string col)
+            {
+                if (!productsTable.Columns.Contains(col)) return;
+
+                var vals = productsTable.AsEnumerable()
+                    .Select(r => r[col]?.ToString())
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct()
+                    .ToArray();
+
+                src.AddRange(vals);
+            }
         }
 
         // ================= IMAGE DROPZONE HELPERS =================
@@ -693,11 +722,13 @@ namespace FashionShop.GUI
             }
         }
 
+        // ✅ CHANGED: load from file -> store blob + mime + preview
         private void LoadImage(string path)
         {
             try
             {
-                selectedImagePath = path;
+                selectedImageBlob = File.ReadAllBytes(path);
+                selectedImageMime = GetMimeFromExtension(Path.GetExtension(path));
 
                 using (var tmp = Image.FromFile(path))
                 {
@@ -714,10 +745,50 @@ namespace FashionShop.GUI
             }
         }
 
+        // ✅ NEW: load from blob -> preview only
+        private void LoadImageFromBlob(byte[] blob)
+        {
+            try
+            {
+                if (blob == null || blob.Length == 0)
+                {
+                    ClearImageBox();
+                    return;
+                }
+
+                using (var ms = new MemoryStream(blob))
+                using (var img = Image.FromStream(ms))
+                {
+                    picPreview.Image = new Bitmap(img);
+                }
+
+                picPreview.Visible = true;
+                lblDropHint.Visible = false;
+                btnChooseImage.Visible = false;
+            }
+            catch
+            {
+                ClearImageBox();
+            }
+        }
+
+        // ✅ NEW: basic mime mapping
+        private string GetMimeFromExtension(string ext)
+        {
+            ext = (ext ?? "").ToLowerInvariant();
+            if (ext == ".png") return "image/png";
+            if (ext == ".gif") return "image/gif";
+            if (ext == ".bmp") return "image/bmp";
+            return "image/jpeg";
+        }
+
+        // ✅ CHANGED: clear blob state
         private void ClearImageBox()
         {
             picPreview.Image = null;
-            selectedImagePath = null;
+
+            selectedImageBlob = null;
+            selectedImageMime = null;
 
             picPreview.Visible = false;
             lblDropHint.Visible = true;
@@ -823,9 +894,13 @@ namespace FashionShop.GUI
                 ColorId = cboColor.SelectedValue == null ? 0 : Convert.ToInt32(cboColor.SelectedValue),
                 Gender = cboGender.Text,
                 Size = cboSize.Text,
-                Price = price,
+                //Price = price,
                 Stock = (int)nudStock.Value,
-                ImagePath = selectedImagePath
+                Price = nudPrice.Value * 1000m,
+
+                // ✅ CHANGED: store blob + mime
+                ImageBlob = selectedImageBlob,
+                ImageMime = selectedImageMime
             };
         }
 
@@ -895,23 +970,32 @@ namespace FashionShop.GUI
             var priceStr = r.Cells["price"].Value?.ToString();
             if (decimal.TryParse(priceStr, NumberStyles.Number, CultureInfo.CurrentCulture, out var price))
             {
-                nudPrice.Value = Math.Min(nudPrice.Maximum, price);
+                var display = price / 1000m;      // 261,000 -> 261
+                nudPrice.Value = Math.Min(nudPrice.Maximum, display);
             }
+
 
             if (int.TryParse(r.Cells["stock"].Value?.ToString(), out var stock))
                 nudStock.Value = Math.Min(nudStock.Maximum, stock);
 
+            // ✅ CHANGED: load image from DB (BLOB) not from image_path
             ClearImageBox();
 
-            if (dgv.Columns.Contains("image_path"))
+            var code = txtCode.Text.Trim();
+            if (!string.IsNullOrWhiteSpace(code))
             {
-                var path = r.Cells["image_path"].Value?.ToString();
-                if (!string.IsNullOrWhiteSpace(path) && System.IO.File.Exists(path))
+                var img = service.GetImageByCode(code); // Tuple<byte[], string>
+                if (img != null && img.Item1 != null && img.Item1.Length > 0)
                 {
-                    LoadImage(path);
+                    LoadImageFromBlob(img.Item1);
+
+                    // giữ blob để update không làm mất ảnh nếu user không chọn ảnh mới
+                    selectedImageBlob = img.Item1;
+                    selectedImageMime = img.Item2;
                 }
             }
         }
+
         // tạo nút "..." nhỏ gọn
         // Tạo icon nhỏ (PictureBox) thay cho nút "..."
         private PictureBox CreateManageIcon(Image icon, EventHandler onClick)
@@ -973,7 +1057,6 @@ namespace FashionShop.GUI
             cboColor.SelectedIndex = dt.Rows.Count > 0 ? 0 : -1;
         }
 
-
         private bool IsAdmin()
         {
             return current != null &&
@@ -1018,7 +1101,5 @@ namespace FashionShop.GUI
             activeCol.HeaderCell.Style.BackColor = HeaderBackActive;
             activeCol.HeaderCell.Style.ForeColor = HeaderForeActive;
         }
-
-
     }
 }

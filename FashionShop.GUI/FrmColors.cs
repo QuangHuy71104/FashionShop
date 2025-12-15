@@ -281,13 +281,76 @@ namespace FashionShop.GUI
 
             dgv.DataSource = colorsView;
 
+            // highlight header khi chọn ô
+            dgv.SelectionChanged += (s, e) => HighlightCurrentColumnHeader();
+            dgv.CellEnter += (s, e) => HighlightCurrentColumnHeader();
+            dgv.ColumnHeaderMouseClick += (s, e) => HighlightCurrentColumnHeader();
+
+            // cho bảng co giãn theo form
+            dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgv.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None;
+
+            dgv.AllowUserToResizeColumns = false;
+            dgv.AllowUserToResizeRows = false;
+
+            dgv.RowTemplate.Height = 30;
+            dgv.ColumnHeadersHeight = 38;
+            dgv.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            dgv.RowHeadersWidthSizeMode = DataGridViewRowHeadersWidthSizeMode.DisableResizing;
+
+            // ===== STT (No) =====
+            if (!dgv.Columns.Contains("stt"))
+            {
+                var sttCol = new DataGridViewTextBoxColumn
+                {
+                    Name = "stt",
+                    HeaderText = "No",
+                    ReadOnly = true
+                };
+                dgv.Columns.Insert(0, sttCol);
+            }
+
+            var stt = dgv.Columns["stt"];
+            stt.DisplayIndex = 0;
+            stt.AutoSizeMode = DataGridViewAutoSizeColumnMode.None; // không cho Fill
+            stt.Width = 65;
+            stt.MinimumWidth = 65;
+            stt.Resizable = DataGridViewTriState.False;
+
+            // ===== ID nhỏ =====
             if (dgv.Columns.Contains("color_id"))
-                dgv.Columns["color_id"].HeaderText = "Id";
+            {
+                var id = dgv.Columns["color_id"];
+                id.HeaderText = "ID";
+                id.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                id.Width = 65;
+                id.MinimumWidth = 65;
+                id.Resizable = DataGridViewTriState.False;
+            }
+
+            // ===== Name co giãn =====
             if (dgv.Columns.Contains("color_name"))
-                dgv.Columns["color_name"].HeaderText = "Color";
+            {
+                var name = dgv.Columns["color_name"];
+                name.HeaderText = "Color";
+                name.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                name.FillWeight = 100;
+                name.MinimumWidth = 200;
+            }
+
+            // đổ số thứ tự theo filter/search
+            dgv.RowPostPaint -= Dgv_RowPostPaint;
+            dgv.RowPostPaint += Dgv_RowPostPaint;
 
             ApplySearch();
+            HighlightCurrentColumnHeader();
         }
+
+        private void Dgv_RowPostPaint(object sender, DataGridViewRowPostPaintEventArgs e)
+        {
+            dgv.Rows[e.RowIndex].Cells["stt"].Value = (e.RowIndex + 1).ToString();
+        }
+
 
         private void ApplySearch()
         {
@@ -437,6 +500,32 @@ namespace FashionShop.GUI
             }
             return bmp;
         }
+
+        // ===== header highlight giống Categories =====
+        private readonly Color HeaderBackNormal = Color.FromArgb(245, 245, 245);
+        private readonly Color HeaderForeNormal = Color.Black;
+
+        private readonly Color HeaderBackActive = Color.FromArgb(33, 150, 243);
+        private readonly Color HeaderForeActive = Color.White;
+
+        private void HighlightCurrentColumnHeader()
+        {
+            if (dgv == null || dgv.Columns.Count == 0) return;
+
+            foreach (DataGridViewColumn col in dgv.Columns)
+            {
+                col.HeaderCell.Style.BackColor = HeaderBackNormal;
+                col.HeaderCell.Style.ForeColor = HeaderForeNormal;
+                col.HeaderCell.Style.Font = new Font("Segoe UI Semibold", 10f);
+            }
+
+            if (dgv.CurrentCell == null) return;
+
+            var activeCol = dgv.Columns[dgv.CurrentCell.ColumnIndex];
+            activeCol.HeaderCell.Style.BackColor = HeaderBackActive;
+            activeCol.HeaderCell.Style.ForeColor = HeaderForeActive;
+        }
+
 
         private void FrmColors_Load(object sender, EventArgs e)
         {
