@@ -23,6 +23,8 @@ namespace FashionShop.GUI
         private TextBox txtSearch;
         private Button btnAdd, btnRemove, btnCheckout, btnSearch;
         private Button btnNewCustomer;
+        private string colCategory;
+        private string colColor;
 
 
         private int? selectedProductId = null;   // sản phẩm đang chọn
@@ -588,17 +590,22 @@ namespace FashionShop.GUI
 
             string[] codeCandidates = { "product_code", "ProductCode", "code", "productCode" };
             string[] nameCandidates = { "product_name", "ProductName", "name", "productName" };
+            string[] categoryCandidates = { "category_name", "CategoryName", "category" };
+            string[] colorCandidates = { "color_name", "ColorName", "color" };
 
-            colCode = productsTable.Columns
-                .Cast<DataColumn>()
-                .Select(c => c.ColumnName)
+            colCode = productsTable.Columns.Cast<DataColumn>().Select(c => c.ColumnName)
                 .FirstOrDefault(n => codeCandidates.Contains(n));
 
-            colName = productsTable.Columns
-                .Cast<DataColumn>()
-                .Select(c => c.ColumnName)
+            colName = productsTable.Columns.Cast<DataColumn>().Select(c => c.ColumnName)
                 .FirstOrDefault(n => nameCandidates.Contains(n));
+
+            colCategory = productsTable.Columns.Cast<DataColumn>().Select(c => c.ColumnName)
+                .FirstOrDefault(n => categoryCandidates.Contains(n));
+
+            colColor = productsTable.Columns.Cast<DataColumn>().Select(c => c.ColumnName)
+                .FirstOrDefault(n => colorCandidates.Contains(n));
         }
+
 
         private void ApplySearch()
         {
@@ -609,21 +616,30 @@ namespace FashionShop.GUI
 
             productsView.RowFilter = "";
 
-            if (!string.IsNullOrWhiteSpace(key))
-            {
-                key = key.Replace("'", "''");
+            if (string.IsNullOrWhiteSpace(key)) return;
 
-                if (!string.IsNullOrEmpty(colCode) && !string.IsNullOrEmpty(colName))
-                {
-                    productsView.RowFilter =
-                        $"[{colCode}] LIKE '%{key}%' OR [{colName}] LIKE '%{key}%'";
-                }
-                else if (!string.IsNullOrEmpty(colName))
-                {
-                    productsView.RowFilter = $"[{colName}] LIKE '%{key}%'";
-                }
+            key = key.Replace("'", "''");
+
+            var parts = new List<string>();
+
+            void addLike(string col)
+            {
+                if (!string.IsNullOrEmpty(col) && productsTable.Columns.Contains(col))
+                    parts.Add($"CONVERT([{col}], 'System.String') LIKE '%{key}%'");
             }
+
+            addLike(colCode);
+            addLike(colName);
+            addLike(colCategory);
+            addLike(colColor);
+
+            // (tuỳ bạn) thêm size/gender nếu muốn:
+            addLike("size");
+            addLike("gender");
+
+            productsView.RowFilter = string.Join(" OR ", parts);
         }
+
 
         private void SetupAutoComplete()
         {

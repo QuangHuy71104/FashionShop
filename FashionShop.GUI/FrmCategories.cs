@@ -236,7 +236,11 @@ namespace FashionShop.GUI
             {
                 Dock = DockStyle.Fill,
                 ReadOnly = true,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill, // << QUAN TRỌNG
+                AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None,
+
+                ScrollBars = ScrollBars.Both, // để có scroll ngang khi cột cố định
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
                 RowHeadersVisible = false,
@@ -244,6 +248,7 @@ namespace FashionShop.GUI
                 BackgroundColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle,
             };
+
             dgv.CellClick += Dgv_CellClick;
             StyleGrid(dgv);
 
@@ -273,6 +278,32 @@ namespace FashionShop.GUI
             };
         }
 
+        private readonly Color HeaderBackNormal = Color.FromArgb(245, 245, 245);
+        private readonly Color HeaderForeNormal = Color.Black;
+
+        private readonly Color HeaderBackActive = Color.FromArgb(33, 150, 243);
+        private readonly Color HeaderForeActive = Color.White;
+
+        private void HighlightCurrentColumnHeader()
+        {
+            if (dgv == null || dgv.Columns.Count == 0) return;
+
+            // reset header
+            foreach (DataGridViewColumn col in dgv.Columns)
+            {
+                col.HeaderCell.Style.BackColor = HeaderBackNormal;
+                col.HeaderCell.Style.ForeColor = HeaderForeNormal;
+                col.HeaderCell.Style.Font = new Font("Segoe UI Semibold", 10f);
+            }
+
+            if (dgv.CurrentCell == null) return;
+
+            var activeCol = dgv.Columns[dgv.CurrentCell.ColumnIndex];
+            activeCol.HeaderCell.Style.BackColor = HeaderBackActive;
+            activeCol.HeaderCell.Style.ForeColor = HeaderForeActive;
+        }
+
+
         // ================= LOAD + SEARCH =================
         private void LoadGrid()
         {
@@ -280,14 +311,89 @@ namespace FashionShop.GUI
             categoriesView = categoriesTable.DefaultView;
 
             dgv.DataSource = categoriesView;
+            dgv.SelectionChanged += (s, e) => HighlightCurrentColumnHeader();
+            dgv.CellEnter += (s, e) => HighlightCurrentColumnHeader();
+            dgv.ColumnHeaderMouseClick += (s, e) => HighlightCurrentColumnHeader();
 
+            // khóa autosize toàn bảng
+            // Cho bảng co giãn theo form
+            dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgv.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None;
+
+            dgv.AllowUserToResizeColumns = false;
+            dgv.AllowUserToResizeRows = false;
+
+            dgv.RowTemplate.Height = 30;          // chiều cao ô cố định
+            dgv.ColumnHeadersHeight = 38;         // chiều cao header cố định
+            dgv.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            dgv.RowHeadersWidthSizeMode = DataGridViewRowHeadersWidthSizeMode.DisableResizing;
+
+            // ===== STT (No) =====
+            if (!dgv.Columns.Contains("stt"))
+            {
+                var sttCol = new DataGridViewTextBoxColumn
+                {
+                    Name = "stt",
+                    HeaderText = "No",
+                    ReadOnly = true
+                };
+                dgv.Columns.Insert(0, sttCol);
+            }
+
+            var stt = dgv.Columns["stt"];
+            stt.DisplayIndex = 0;
+            stt.AutoSizeMode = DataGridViewAutoSizeColumnMode.None; // QUAN TRỌNG: không cho Fill
+            stt.Width = 65;
+            stt.MinimumWidth = 65;
+            stt.Resizable = DataGridViewTriState.False;
+
+            // ===== ID =====
             if (dgv.Columns.Contains("category_id"))
-                dgv.Columns["category_id"].HeaderText = "Id";
+            {
+                var id = dgv.Columns["category_id"];
+                id.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                id.Width = 65;
+                id.MinimumWidth = 65;
+                id.Resizable = DataGridViewTriState.False;
+            }
+
+            // ===== Name co giãn =====
             if (dgv.Columns.Contains("category_name"))
-                dgv.Columns["category_name"].HeaderText = "Category";
+            {
+                var name = dgv.Columns["category_name"];
+                name.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                name.FillWeight = 100;
+                name.MinimumWidth = 200;
+            }
+
+
+            // ===== STT =====
+            if (!dgv.Columns.Contains("stt"))
+            {
+                var sttCol = new DataGridViewTextBoxColumn
+                {
+                    Name = "stt",
+                    HeaderText = "No",
+                    Width = 80,
+                    ReadOnly = true
+                };
+                dgv.Columns.Insert(0, sttCol);
+            }
+
+            dgv.Columns["stt"].DisplayIndex = 0;
+            dgv.RowPostPaint -= Dgv_RowPostPaint;
+            dgv.RowPostPaint += Dgv_RowPostPaint;
+
 
             ApplySearch();
         }
+
+        private void Dgv_RowPostPaint(object sender, DataGridViewRowPostPaintEventArgs e)
+        {
+            // số thứ tự hiển thị theo row đang thấy (sẽ đúng cả khi filter/search)
+            dgv.Rows[e.RowIndex].Cells["stt"].Value = (e.RowIndex + 1).ToString();
+        }
+
 
         private void ApplySearch()
         {
@@ -353,6 +459,24 @@ namespace FashionShop.GUI
                 LoadGrid();
             }
             else MessageBox.Show(err);
+        }
+
+        private void InitializeComponent()
+        {
+            this.SuspendLayout();
+            // 
+            // FrmCategories
+            // 
+            this.ClientSize = new System.Drawing.Size(274, 229);
+            this.Name = "FrmCategories";
+            this.Load += new System.EventHandler(this.FrmCategories_Load);
+            this.ResumeLayout(false);
+
+        }
+
+        private void FrmCategories_Load(object sender, EventArgs e)
+        {
+
         }
 
         private void BtnDel_Click(object sender, EventArgs e)
