@@ -628,31 +628,44 @@ namespace FashionShop.GUI
 
         private void ApplySearch()
         {
-            if (productsView == null) return;
+            if (productsView == null || productsTable == null) return;
 
             var key = txtSearch.Text.Trim();
             if (key == hintSearch) key = "";
+
             productsView.RowFilter = "";
 
-            if (!string.IsNullOrWhiteSpace(key))
+            if (string.IsNullOrWhiteSpace(key)) return;
+
+            key = key.Replace("'", "''");
+
+            // các cột text muốn search
+            string[] textCols =
             {
-                key = key.Replace("'", "''");
+        "product_code",
+        "product_name",
+        "category_name",
+        "size",
+        "color_name",   // ✅ đúng tên cột
+        "gender"
+    };
 
-                string[] cols = {
-                    "product_code",
-                    "product_name",
-                    "category_name",
-                    "size",
-                    "color",
-                    "gender"
-                };
+            var filters = textCols
+                .Where(c => productsTable.Columns.Contains(c))
+                .Select(c => $"CONVERT([{c}], 'System.String') LIKE '%{key}%'")
+                .ToList();
 
-                var realCols = cols
-                    .Where(c => productsTable.Columns.Contains(c))
-                    .Select(c => string.Format("CONVERT([{0}], 'System.String') LIKE '%{1}%'", c, key));
-
-                productsView.RowFilter = string.Join(" OR ", realCols);
+            // ✅ search thêm price: cho phép gõ 280 hoặc 280000 hoặc 280,000
+            if (productsTable.Columns.Contains("price"))
+            {
+                var digits = new string(key.Where(char.IsDigit).ToArray());
+                if (!string.IsNullOrEmpty(digits))
+                {
+                    filters.Add($"CONVERT([price], 'System.String') LIKE '%{digits}%'");
+                }
             }
+
+            productsView.RowFilter = string.Join(" OR ", filters);
         }
 
         private void SetupAutoComplete()
